@@ -1,6 +1,5 @@
 enum AppRoutes {
-  home('/home'),
-  permanentPp('/permanent-pp');
+  home('/home');
 
   const AppRoutes(this.path);
 

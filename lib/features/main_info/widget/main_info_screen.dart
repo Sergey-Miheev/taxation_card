@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
-import 'package:taxation_card/core/router/routes.dart';
+import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 
 final class MainInfoScreen extends StatefulWidget {
@@ -14,7 +11,8 @@ final class MainInfoScreen extends StatefulWidget {
   State<MainInfoScreen> createState() => _MainInfoScreenState();
 }
 
-final class _MainInfoScreenState extends State<MainInfoScreen> {
+final class _MainInfoScreenState extends State<MainInfoScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _quarterController = TextEditingController();
   final TextEditingController _allotmentController = TextEditingController();
   final TextEditingController _samplePlotNumberController =
@@ -58,6 +56,7 @@ final class _MainInfoScreenState extends State<MainInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
 
     return BlocListener<MainInfoBloc, MainInfoState>(
@@ -68,7 +67,9 @@ final class _MainInfoScreenState extends State<MainInfoScreen> {
 
         switch (state.status) {
           case MainInfoSubmissionStatus.success:
-            unawaited(context.pushNamed(AppRoutes.permanentPp.name));
+            context.read<MainTabsBloc>().add(
+              const MainTabsEvent.tabSelected(MainTab.permanentPp),
+            );
           case MainInfoSubmissionStatus.failure:
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -80,59 +81,59 @@ final class _MainInfoScreenState extends State<MainInfoScreen> {
             break;
         }
       },
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Общая информация')),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 720;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = constraints.maxWidth >= 720;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? 24 : 16,
-                vertical: 16,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1180),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Общая информация',
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Заполните местоположение и параметры пробной площади.',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      if (isTablet)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildLocationCard()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildSamplePlotCard()),
-                          ],
-                        )
-                      else ...[
-                        _buildLocationCard(),
-                        const SizedBox(height: 12),
-                        _buildSamplePlotCard(),
-                      ],
-                      const SizedBox(height: 16),
-                      _buildSubmitButton(),
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 24 : 16,
+              vertical: 16,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Общая информация',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Заполните местоположение и параметры пробной площади.',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    if (isTablet)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildLocationCard()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildSamplePlotCard()),
+                        ],
+                      )
+                    else ...[
+                      _buildLocationCard(),
+                      const SizedBox(height: 12),
+                      _buildSamplePlotCard(),
                     ],
-                  ),
+                    const SizedBox(height: 16),
+                    _buildSubmitButton(),
+                  ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   void _syncControllers(MainInfoFormData data) {
     _setControllerText(_quarterController, data.quarter.toString());

@@ -5,10 +5,14 @@ import 'package:talker_bloc_logger/talker_bloc_logger_observer.dart';
 import 'package:taxation_card/core/database/database_helper.dart';
 import 'package:taxation_card/core/router/app_router.dart';
 import 'package:taxation_card/features/app/app.dart';
+import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/di/data/dependencies.dart';
+import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
+import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
 
 final class AppRunner {
   const AppRunner();
@@ -24,8 +28,12 @@ final class AppRunner {
     final subjectsRepository = SubjectsRepository(database: database);
 
     final dependencies = Dependencies(
+      mainTabsBloc: MainTabsBloc(),
       mainInfoBloc: MainInfoBloc(),
       permanentPpBloc: PermanentPpBloc(),
+      undergrowthBloc: UndergrowthBloc(),
+      deadwoodBloc: DeadwoodBloc(),
+      soilsBloc: SoilsBloc(),
       subjectsRepository: subjectsRepository,
     );
 

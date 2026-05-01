@@ -10,7 +10,8 @@ final class PermanentPpScreen extends StatefulWidget {
   State<PermanentPpScreen> createState() => _PermanentPpScreenState();
 }
 
-final class _PermanentPpScreenState extends State<PermanentPpScreen> {
+final class _PermanentPpScreenState extends State<PermanentPpScreen>
+    with AutomaticKeepAliveClientMixin {
   static const _landCategories = [
     'Земли лесного фонда',
     'Земли особо охраняемых территорий',
@@ -107,6 +108,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
 
     return BlocListener<PermanentPpBloc, PermanentPpState>(
@@ -127,7 +129,6 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen> {
         );
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Постоянная ПП')),
         bottomNavigationBar: SafeArea(
           top: false,
           child: Padding(
@@ -374,6 +375,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   DropdownButtonFormField<String> _buildDropdownField({
     required String labelText,
