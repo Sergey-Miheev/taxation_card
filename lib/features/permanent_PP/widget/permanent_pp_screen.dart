@@ -69,6 +69,102 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     'Выборочная',
     'Санитарная',
   ];
+  static const _woodQualityOptions = ['Деловая', 'Полуделовая', 'Дровянная'];
+  static const _allSpecies = [
+    'Акация белая',
+    'Акация жёлтая',
+    'Барбарис',
+    'Бархат амурский',
+    'Бересклет',
+    'Берёза',
+    'Берёза каменная',
+    'Берёза кустарн.ерник',
+    'Берёза приземистая',
+    'Бобовник',
+    'Боярышник',
+    'Бук',
+    'Бузина',
+    'Вишня',
+    'Волчье лыко',
+    'Вяз',
+    'Вяз культуры',
+    'Граб',
+    'Груша',
+    'Дрок',
+    'Дуб',
+    'Дуб низкоств.',
+    'Дуб черешчатый',
+    'Ежевика сизая',
+    'Ель',
+    'Ель европейская',
+    'Ель сибирская',
+    'Жимолость',
+    'Ива белая-ветла',
+    'Ива древовидная',
+    'Ива кустарниковая',
+    'Ива ломкая-ракита',
+    'Ива пепельная',
+    'Ива черничная',
+    'Ильм горный',
+    'Ильм долинный',
+    'Ирга',
+    'Калина',
+    'Кедр',
+    'Кедр высокогор.',
+    'Кедр разновзр.',
+    'Кедр сибирский',
+    'Кедровый стланик',
+    'Кизильник',
+    'Клён',
+    'Клён культуры',
+    'Клён остролистный',
+    'Клён полевой',
+    'Клён татарский',
+    'Клён ясенелистный',
+    'Крушина ломкая',
+    'Крушина слабительн.',
+    'Куманика',
+    'Лещина обыкновенная',
+    'Липа',
+    'Липа нектарная',
+    'Лиственница',
+    'Лиственница сибирск.',
+    'Лох',
+    'Малина',
+    'Можжевельник',
+    'Облепиха',
+    'Ольха серая',
+    'Ольха чёрная',
+    'Осина',
+    'Пихта',
+    'Пихта сибирская',
+    'Ракитник',
+    'Рододендрон',
+    'Рябина',
+    'Свидина',
+    'Сирень',
+    'Слива-алыча',
+    'Смородина',
+    'Сосна',
+    'Сосна банкса',
+    'Спирея',
+    'Тальник',
+    'Терн-слива колючая',
+    'Тополь',
+    'Тополь белый',
+    'Тополь культуры',
+    'Тополь пирамидальный',
+    'Тополь чёрный',
+    'Чилига',
+    'Черёмуха',
+    'Черёмуха пенсильван.',
+    'Шиповник',
+    'Яблоня',
+    'Яблоня дикая',
+    'Ясень',
+    'Ясень зеленый',
+    'Ясень обыкновенный',
+  ];
 
   final _formKey = GlobalKey<FormState>();
   final _plotNumberController = TextEditingController();
@@ -92,6 +188,10 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   String? _selectedForestType;
   String? _selectedTlu;
   String? _selectedCuttingType;
+  String? _selectedWoodQuality = 'Деловая';
+  final List<String> _dynamicElements = [];
+  String? _selectedDynamicElement;
+  final List<int> _selectedGridNumbers = [];
 
   @override
   void dispose() {
@@ -168,11 +268,123 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Постоянная ПП', style: theme.textTheme.headlineMedium),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _woodQualityOptions.map((quality) {
+                      final isSelected = _selectedWoodQuality == quality;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(quality),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() => _selectedWoodQuality = quality);
+                            }
+                          },
+                          showCheckmark: false,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ..._dynamicElements.map((element) {
+                        final isSelected = _selectedDynamicElement == element;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InputChip(
+                            label: Text(element),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedDynamicElement =
+                                    selected ? element : null;
+                              });
+                            },
+                            onDeleted: () {
+                              setState(() {
+                                _dynamicElements.remove(element);
+                                if (_selectedDynamicElement == element) {
+                                  _selectedDynamicElement = null;
+                                }
+                              });
+                            },
+                            showCheckmark: false,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: theme.colorScheme.secondaryContainer
+                                .withValues(alpha: 0.5),
+                          ),
+                        );
+                      }),
+                      IconButton.filledTonal(
+                        onPressed: _showSpeciesDialog,
+                        icon: const Icon(Icons.add, size: 20),
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Сетка участков (выберите 2)', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
-                Text(
-                  'Заполните параметры участка и лесные характеристики. Все поля доступны для редактирования на мобильном устройстве.',
-                  style: theme.textTheme.bodyLarge,
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 10,
+                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 4,
+                  ),
+                  itemCount: 100,
+                  itemBuilder: (context, index) {
+                    final number = index + 1;
+                    final isSelected = _selectedGridNumbers.contains(number);
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedGridNumbers.remove(number);
+                          } else if (_selectedGridNumbers.length < 2) {
+                            _selectedGridNumbers.add(number);
+                          }
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$number',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            color: isSelected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurfaceVariant,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 const _MainInfoSummary(),
@@ -460,6 +672,62 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     }
 
     context.read<PermanentPpBloc>().add(const PermanentPpEvent.sentInfo());
+  }
+
+  Future<void> _showSpeciesDialog() async {
+    String? localSelected;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Выберите породу'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _allSpecies.length,
+                  itemBuilder: (context, index) {
+                    final species = _allSpecies[index];
+                    return RadioListTile<String>(
+                      title: Text(species),
+                      value: species,
+                      groupValue: localSelected,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (value) {
+                        setDialogState(() => localSelected = value);
+                      },
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Отмена'),
+                ),
+                FilledButton(
+                  onPressed: localSelected == null
+                      ? null
+                      : () => Navigator.pop(context, localSelected),
+                  child: const Text('Подтвердить'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        if (!_dynamicElements.contains(result)) {
+          _dynamicElements.add(result);
+        }
+      });
+    }
   }
 }
 
