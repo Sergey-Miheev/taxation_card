@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
 final class MainInfoScreen extends StatefulWidget {
   const MainInfoScreen({super.key});
@@ -121,7 +122,7 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
                       _buildSamplePlotCard(),
                     ],
                     const SizedBox(height: 16),
-                    _buildSubmitButton(),
+                    _buildAddButton(),
                   ],
                 ),
               ),
@@ -302,40 +303,25 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
     );
   }
 
-  Widget _buildSubmitButton() {
-    return BlocBuilder<MainInfoBloc, MainInfoState>(
-      builder: (context, state) {
-        final isLoading = state.status == MainInfoSubmissionStatus.loading;
-
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: isLoading
-                ? null
-                : () {
-                    context.read<MainInfoBloc>().add(
-                      const MainInfoEvent.sentInfo(),
-                    );
-                  },
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+  Widget _buildAddButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => const TaxationCharacteristicScreen(),
             ),
-            child: isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Продолжить'),
+          );
+        },
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        );
-      },
+        ),
+        child: const Text('Добавить'),
+      ),
     );
   }
 

@@ -12,6 +12,7 @@ import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
 
 final class AppRunner {
@@ -34,6 +35,7 @@ final class AppRunner {
       undergrowthBloc: UndergrowthBloc(),
       deadwoodBloc: DeadwoodBloc(),
       soilsBloc: SoilsBloc(),
+      taxationCharacteristicBloc: TaxationCharacteristicBloc(),
       subjectsRepository: subjectsRepository,
     );
 
