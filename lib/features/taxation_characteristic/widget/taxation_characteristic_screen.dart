@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 
 final class TaxationCharacteristicScreen extends StatefulWidget {
-  const TaxationCharacteristicScreen({super.key});
+  const TaxationCharacteristicScreen({super.key, this.initialRecord});
+
+  final TaxationCharacteristicRecord? initialRecord;
 
   @override
   State<TaxationCharacteristicScreen> createState() =>
@@ -13,7 +16,6 @@ final class TaxationCharacteristicScreen extends StatefulWidget {
 final class _TaxationCharacteristicScreenState
     extends State<TaxationCharacteristicScreen>
     with AutomaticKeepAliveClientMixin {
-  static const _tiers = ['1', '2', '3'];
   static const _forestTypes = [
     'Черничный',
     'Кисличный',
@@ -22,9 +24,42 @@ final class _TaxationCharacteristicScreenState
     'Сфагновый',
   ];
   static const _siteClasses = ['Ia', 'I', 'II', 'III', 'IV', 'V'];
+  static const _tluValues = [
+    'A0',
+    'A1',
+    'A2',
+    'A3',
+    'A4',
+    'A5',
+    'B0',
+    'B1',
+    'B2',
+    'B3',
+    'B4',
+    'B5',
+    'C0',
+    'C1',
+    'C2',
+    'C3',
+    'C4',
+    'C5',
+    'Д0',
+    'Д1',
+    'Д2',
+    'Д3',
+    'Д4',
+    'Д5',
+    'E0',
+    'E1',
+    'E2',
+    'E3',
+    'E4',
+    'E5',
+  ];
   static const _merchantabilityClasses = ['1', '2', '3', '4'];
 
   final _formKey = GlobalKey<FormState>();
+  final _tierController = TextEditingController();
   final _dominantSpeciesController = TextEditingController();
   final _compositionCoefficientController = TextEditingController();
   final _ageController = TextEditingController();
@@ -32,7 +67,6 @@ final class _TaxationCharacteristicScreenState
   final _diameterController = TextEditingController();
   final _densityController = TextEditingController();
   final _stockController = TextEditingController();
-  final _tluController = TextEditingController();
   final _plantationsTotalController = TextEditingController();
   final _coniferousTotalController = TextEditingController();
   final _canopyClosureController = TextEditingController();
@@ -40,12 +74,21 @@ final class _TaxationCharacteristicScreenState
   final _commercialWoodOutputController = TextEditingController();
 
   late final TaxationCharacteristicBloc _bloc;
+  TaxationCharacteristicRecord? _initialRecord;
 
   @override
   void initState() {
     super.initState();
     _bloc = context.read<TaxationCharacteristicBloc>();
-    _syncControllers(_bloc.state);
+    final initialRecord = widget.initialRecord;
+    _initialRecord = initialRecord;
+    if (initialRecord != null) {
+      _syncControllersFromRecord(initialRecord);
+      _bloc.add(TaxationCharacteristicEvent.recordSelected(initialRecord));
+    } else {
+      _syncControllers(_bloc.state);
+    }
+    _tierController.addListener(_onTierChanged);
     _dominantSpeciesController.addListener(_onDominantSpeciesChanged);
     _compositionCoefficientController.addListener(
       _onCompositionCoefficientChanged,
@@ -55,7 +98,6 @@ final class _TaxationCharacteristicScreenState
     _diameterController.addListener(_onDiameterChanged);
     _densityController.addListener(_onDensityChanged);
     _stockController.addListener(_onStockChanged);
-    _tluController.addListener(_onTluChanged);
     _plantationsTotalController.addListener(_onPlantationsTotalChanged);
     _coniferousTotalController.addListener(_onConiferousTotalChanged);
     _canopyClosureController.addListener(_onCanopyClosureChanged);
@@ -65,6 +107,9 @@ final class _TaxationCharacteristicScreenState
 
   @override
   void dispose() {
+    _tierController
+      ..removeListener(_onTierChanged)
+      ..dispose();
     _dominantSpeciesController
       ..removeListener(_onDominantSpeciesChanged)
       ..dispose();
@@ -85,9 +130,6 @@ final class _TaxationCharacteristicScreenState
       ..dispose();
     _stockController
       ..removeListener(_onStockChanged)
-      ..dispose();
-    _tluController
-      ..removeListener(_onTluChanged)
       ..dispose();
     _plantationsTotalController
       ..removeListener(_onPlantationsTotalChanged)
@@ -119,9 +161,17 @@ final class _TaxationCharacteristicScreenState
       listenWhen: (previous, current) => previous.status != current.status,
       listener: (context, state) {
         if (state.status == TaxationCharacteristicStatus.success) {
+          final initialRecord = _initialRecord;
+          if (initialRecord != null) {
+            setState(() {
+              _initialRecord = _recordFromState(state, id: initialRecord.id);
+            });
+          }
+
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Данные сохранены')));
+          context.pop();
         }
 
         if (state.status == TaxationCharacteristicStatus.failure) {
@@ -144,41 +194,30 @@ final class _TaxationCharacteristicScreenState
                   TaxationCharacteristicState
                 >(
                   buildWhen: (previous, current) =>
-                      previous.status != current.status,
+                      previous.status != current.status ||
+                      _formDataChanged(previous, current),
                   builder: (context, state) {
                     final isLoading =
                         state.status == TaxationCharacteristicStatus.loading;
+                    final isEditing = _initialRecord != null;
+                    final isChanged = _isChangedFromInitial(state);
 
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: isLoading ? null : _onSavePressed,
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(56),
-                            ),
-                            child: const Text('Сохранить'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: isLoading ? null : _onAddPressed,
-                            icon: isLoading
-                                ? const SizedBox.square(
-                                    dimension: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.4,
-                                    ),
-                                  )
-                                : const Icon(Icons.add),
-                            label: const Text('Добавить'),
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(56),
-                            ),
-                          ),
-                        ),
-                      ],
+                    return FilledButton.icon(
+                      onPressed: isLoading || (isEditing && !isChanged)
+                          ? null
+                          : _onSubmitPressed,
+                      icon: isLoading
+                          ? const SizedBox.square(
+                              dimension: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                              ),
+                            )
+                          : const Icon(Icons.add),
+                      label: Text(isEditing ? 'Изменить' : 'Добавить'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                      ),
                     );
                   },
                 ),
@@ -200,23 +239,9 @@ final class _TaxationCharacteristicScreenState
                 _FormSection(
                   title: 'Общие характеристики',
                   children: [
-                    BlocBuilder<
-                      TaxationCharacteristicBloc,
-                      TaxationCharacteristicState
-                    >(
-                      buildWhen: (previous, current) =>
-                          previous.tier != current.tier,
-                      builder: (context, state) {
-                        return _buildDropdownField(
-                          labelText: 'Ярус',
-                          value: state.tier,
-                          items: _tiers,
-                          onChanged: (value) => _onDropdownChanged(
-                            TaxationCharacteristicField.tier,
-                            value,
-                          ),
-                        );
-                      },
+                    _buildNumberField(
+                      controller: _tierController,
+                      labelText: 'Ярус',
                     ),
                     const SizedBox(height: 12),
                     _buildTextField(
@@ -273,9 +298,23 @@ final class _TaxationCharacteristicScreenState
                       },
                     ),
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _tluController,
-                      labelText: 'ТЛУ',
+                    BlocBuilder<
+                      TaxationCharacteristicBloc,
+                      TaxationCharacteristicState
+                    >(
+                      buildWhen: (previous, current) =>
+                          previous.tlu != current.tlu,
+                      builder: (context, state) {
+                        return _buildDropdownField(
+                          labelText: 'ТЛУ',
+                          value: state.tlu,
+                          items: _tluValues,
+                          onChanged: (value) => _onDropdownChanged(
+                            TaxationCharacteristicField.tlu,
+                            value,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -377,9 +416,11 @@ final class _TaxationCharacteristicScreenState
     required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
+    bool isExpanded = true,
   }) {
     return DropdownButtonFormField<String>(
       initialValue: value,
+      isExpanded: isExpanded,
       decoration: _inputDecoration(labelText),
       items: items
           .map(
@@ -452,19 +493,133 @@ final class _TaxationCharacteristicScreenState
   }
 
   void _syncControllers(TaxationCharacteristicState state) {
-    _dominantSpeciesController.text = state.dominantSpecies;
-    _compositionCoefficientController.text = state.compositionCoefficient;
-    _ageController.text = state.age;
-    _averageHeightController.text = state.averageHeight;
-    _diameterController.text = state.diameter;
-    _densityController.text = state.density;
-    _stockController.text = state.stock;
-    _tluController.text = state.tlu;
-    _plantationsTotalController.text = state.plantationsTotal;
-    _coniferousTotalController.text = state.coniferousTotal;
-    _canopyClosureController.text = state.canopyClosure;
-    _sparsenessController.text = state.sparseness;
-    _commercialWoodOutputController.text = state.commercialWoodOutput;
+    _setControllerText(_tierController, state.tier ?? '');
+    _setControllerText(_dominantSpeciesController, state.dominantSpecies);
+    _setControllerText(
+      _compositionCoefficientController,
+      state.compositionCoefficient,
+    );
+    _setControllerText(_ageController, state.age);
+    _setControllerText(_averageHeightController, state.averageHeight);
+    _setControllerText(_diameterController, state.diameter);
+    _setControllerText(_densityController, state.density);
+    _setControllerText(_stockController, state.stock);
+    _setControllerText(_plantationsTotalController, state.plantationsTotal);
+    _setControllerText(_coniferousTotalController, state.coniferousTotal);
+    _setControllerText(_canopyClosureController, state.canopyClosure);
+    _setControllerText(_sparsenessController, state.sparseness);
+    _setControllerText(
+      _commercialWoodOutputController,
+      state.commercialWoodOutput,
+    );
+  }
+
+  void _syncControllersFromRecord(TaxationCharacteristicRecord record) {
+    _setControllerText(_tierController, record.tier ?? '');
+    _setControllerText(_dominantSpeciesController, record.dominantSpecies);
+    _setControllerText(
+      _compositionCoefficientController,
+      record.compositionCoefficient,
+    );
+    _setControllerText(_ageController, record.age);
+    _setControllerText(_averageHeightController, record.averageHeight);
+    _setControllerText(_diameterController, record.diameter);
+    _setControllerText(_densityController, record.density);
+    _setControllerText(_stockController, record.stock);
+    _setControllerText(_plantationsTotalController, record.plantationsTotal);
+    _setControllerText(_coniferousTotalController, record.coniferousTotal);
+    _setControllerText(_canopyClosureController, record.canopyClosure);
+    _setControllerText(_sparsenessController, record.sparseness);
+    _setControllerText(
+      _commercialWoodOutputController,
+      record.commercialWoodOutput,
+    );
+  }
+
+  void _setControllerText(TextEditingController controller, String text) {
+    if (controller.text == text) {
+      return;
+    }
+
+    controller.value = controller.value.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
+    );
+  }
+
+  bool _formDataChanged(
+    TaxationCharacteristicState previous,
+    TaxationCharacteristicState current,
+  ) {
+    return previous.tier != current.tier ||
+        previous.dominantSpecies != current.dominantSpecies ||
+        previous.compositionCoefficient != current.compositionCoefficient ||
+        previous.age != current.age ||
+        previous.averageHeight != current.averageHeight ||
+        previous.diameter != current.diameter ||
+        previous.density != current.density ||
+        previous.stock != current.stock ||
+        previous.forestType != current.forestType ||
+        previous.siteClass != current.siteClass ||
+        previous.tlu != current.tlu ||
+        previous.plantationsTotal != current.plantationsTotal ||
+        previous.coniferousTotal != current.coniferousTotal ||
+        previous.canopyClosure != current.canopyClosure ||
+        previous.sparseness != current.sparseness ||
+        previous.commercialWoodOutput != current.commercialWoodOutput ||
+        previous.merchantabilityClass != current.merchantabilityClass;
+  }
+
+  bool _isChangedFromInitial(TaxationCharacteristicState state) {
+    final initialRecord = _initialRecord;
+    if (initialRecord == null) {
+      return true;
+    }
+
+    return initialRecord.tier != state.tier ||
+        initialRecord.dominantSpecies != state.dominantSpecies ||
+        initialRecord.compositionCoefficient != state.compositionCoefficient ||
+        initialRecord.age != state.age ||
+        initialRecord.averageHeight != state.averageHeight ||
+        initialRecord.diameter != state.diameter ||
+        initialRecord.density != state.density ||
+        initialRecord.stock != state.stock ||
+        initialRecord.forestType != state.forestType ||
+        initialRecord.siteClass != state.siteClass ||
+        initialRecord.tlu != state.tlu ||
+        initialRecord.plantationsTotal != state.plantationsTotal ||
+        initialRecord.coniferousTotal != state.coniferousTotal ||
+        initialRecord.canopyClosure != state.canopyClosure ||
+        initialRecord.sparseness != state.sparseness ||
+        initialRecord.commercialWoodOutput != state.commercialWoodOutput ||
+        initialRecord.merchantabilityClass != state.merchantabilityClass;
+  }
+
+  TaxationCharacteristicRecord _recordFromState(
+    TaxationCharacteristicState state, {
+    required int? id,
+  }) {
+    return TaxationCharacteristicRecord(
+      id: id,
+      tier: state.tier,
+      dominantSpecies: state.dominantSpecies,
+      compositionCoefficient: state.compositionCoefficient,
+      age: state.age,
+      averageHeight: state.averageHeight,
+      diameter: state.diameter,
+      density: state.density,
+      stock: state.stock,
+      forestType: state.forestType,
+      siteClass: state.siteClass,
+      tlu: state.tlu,
+      plantationsTotal: state.plantationsTotal,
+      coniferousTotal: state.coniferousTotal,
+      canopyClosure: state.canopyClosure,
+      sparseness: state.sparseness,
+      commercialWoodOutput: state.commercialWoodOutput,
+      merchantabilityClass: state.merchantabilityClass,
+    );
   }
 
   void _onDropdownChanged(TaxationCharacteristicField field, String? value) {
@@ -475,6 +630,10 @@ final class _TaxationCharacteristicScreenState
     _bloc.add(
       TaxationCharacteristicEvent.fieldChanged(field: field, value: value),
     );
+  }
+
+  void _onTierChanged() {
+    _onTextChanged(TaxationCharacteristicField.tier, _tierController.text);
   }
 
   void _onDominantSpeciesChanged() {
@@ -520,10 +679,6 @@ final class _TaxationCharacteristicScreenState
     _onTextChanged(TaxationCharacteristicField.stock, _stockController.text);
   }
 
-  void _onTluChanged() {
-    _onTextChanged(TaxationCharacteristicField.tlu, _tluController.text);
-  }
-
   void _onPlantationsTotalChanged() {
     _onTextChanged(
       TaxationCharacteristicField.plantationsTotal,
@@ -565,15 +720,21 @@ final class _TaxationCharacteristicScreenState
     );
   }
 
-  void _onAddPressed() {
-    if (_formKey.currentState?.validate() ?? false) {
-      _bloc.add(const TaxationCharacteristicEvent.added());
+  void _onSubmitPressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
     }
-  }
 
-  void _onSavePressed() {
-    if (_formKey.currentState?.validate() ?? false) {
-      _bloc.add(const TaxationCharacteristicEvent.saved());
+    final initialRecord = _initialRecord;
+    if (initialRecord != null) {
+      final id = initialRecord.id;
+      if (id == null) {
+        return;
+      }
+
+      _bloc.add(TaxationCharacteristicEvent.updated(id));
+    } else {
+      _bloc.add(const TaxationCharacteristicEvent.added());
     }
   }
 }

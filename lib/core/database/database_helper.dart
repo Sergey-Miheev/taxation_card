@@ -22,8 +22,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -48,6 +49,38 @@ CREATE TABLE subject_districts (
 )
 ''');
 
+    await _createEyesTaxationTable(db);
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createEyesTaxationTable(db);
+    }
+  }
+
+  Future<void> _createEyesTaxationTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS eyes_taxation (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tier INTEGER NOT NULL,
+  dominant_species TEXT NOT NULL,
+  composition_coefficient REAL NOT NULL,
+  age INTEGER NOT NULL,
+  average_height REAL NOT NULL,
+  diameter REAL NOT NULL,
+  density REAL NOT NULL,
+  stock REAL NOT NULL,
+  forest_type TEXT NOT NULL,
+  site_class TEXT NOT NULL,
+  tlu TEXT NOT NULL,
+  plantations_total INTEGER NOT NULL,
+  coniferous_total INTEGER NOT NULL,
+  canopy_closure REAL NOT NULL,
+  sparseness REAL NOT NULL,
+  commercial_wood_output REAL NOT NULL,
+  merchantability_class TEXT NOT NULL
+)
+''');
   }
 
   Future<void> close() async {

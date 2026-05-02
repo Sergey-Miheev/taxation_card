@@ -13,6 +13,7 @@ import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart'
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
 
 final class AppRunner {
@@ -27,6 +28,12 @@ final class AppRunner {
 
     final database = await DatabaseHelper.instance.database;
     final subjectsRepository = SubjectsRepository(database: database);
+    final taxationCharacteristicRepository = TaxationCharacteristicRepository(
+      database: database,
+    );
+    final taxationCharacteristicBloc = TaxationCharacteristicBloc(
+      repository: taxationCharacteristicRepository,
+    )..add(const TaxationCharacteristicEvent.loaded());
 
     final dependencies = Dependencies(
       mainTabsBloc: MainTabsBloc(),
@@ -35,8 +42,9 @@ final class AppRunner {
       undergrowthBloc: UndergrowthBloc(),
       deadwoodBloc: DeadwoodBloc(),
       soilsBloc: SoilsBloc(),
-      taxationCharacteristicBloc: TaxationCharacteristicBloc(),
+      taxationCharacteristicBloc: taxationCharacteristicBloc,
       subjectsRepository: subjectsRepository,
+      taxationCharacteristicRepository: taxationCharacteristicRepository,
     );
 
     runApp(App(routerConfig: AppRouter().config, dependencies: dependencies));

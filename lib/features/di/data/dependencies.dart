@@ -5,6 +5,7 @@ import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart'
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
 
 final class Dependencies {
@@ -17,6 +18,7 @@ final class Dependencies {
     required this.soilsBloc,
     required this.taxationCharacteristicBloc,
     required this.subjectsRepository,
+    required this.taxationCharacteristicRepository,
   });
 
   final MainTabsBloc mainTabsBloc;
@@ -27,4 +29,5 @@ final class Dependencies {
   final SoilsBloc soilsBloc;
   final TaxationCharacteristicBloc taxationCharacteristicBloc;
   final SubjectsRepository subjectsRepository;
+  final TaxationCharacteristicRepository taxationCharacteristicRepository;
 }

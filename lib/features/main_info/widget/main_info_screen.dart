@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/domain/taxation_csv_exporter.dart';
 import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
 final class MainInfoScreen extends StatefulWidget {
@@ -126,6 +128,8 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
                     _buildTaxationRecordsList(),
                     const SizedBox(height: 16),
                     _buildAddButton(),
+                    const SizedBox(height: 12),
+                    _buildExportCsvButton(),
                   ],
                 ),
               ),
@@ -352,6 +356,38 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
     );
   }
 
+  Widget _buildExportCsvButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: _exportTaxationCsv,
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: const Text('Выгрузить в csv'),
+      ),
+    );
+  }
+
+  Future<void> _exportTaxationCsv() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final dependencies = DependenciesScope.of(context);
+    final csvContent = await dependencies.taxationCharacteristicRepository
+        .buildCsv();
+    final fileName = await const TaxationCsvExporter().export(csvContent);
+
+    if (fileName == null) {
+      return;
+    }
+
+    scaffoldMessenger.showSnackBar(
+      SnackBar(content: Text('Файл $fileName выгружен')),
+    );
+  }
+
   InputDecoration _inputDecoration({required String labelText}) {
     return InputDecoration(
       labelText: labelText,
@@ -420,10 +456,11 @@ final class _TaxationRecordTile extends StatelessWidget {
       borderRadius: borderRadius,
       child: InkWell(
         borderRadius: borderRadius,
-        onTap: () {
-          Navigator.of(context).push(
+        onTap: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (context) => const TaxationCharacteristicScreen(),
+              builder: (context) =>
+                  TaxationCharacteristicScreen(initialRecord: record),
             ),
           );
         },

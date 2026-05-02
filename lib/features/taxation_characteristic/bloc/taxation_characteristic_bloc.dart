@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 
 enum TaxationCharacteristicField {
   tier,
@@ -23,6 +24,13 @@ enum TaxationCharacteristicField {
 sealed class TaxationCharacteristicEvent {
   const TaxationCharacteristicEvent();
 
+  const factory TaxationCharacteristicEvent.loaded() =
+      TaxationCharacteristicLoaded;
+
+  const factory TaxationCharacteristicEvent.recordSelected(
+    TaxationCharacteristicRecord record,
+  ) = TaxationCharacteristicRecordSelected;
+
   const factory TaxationCharacteristicEvent.fieldChanged({
     required TaxationCharacteristicField field,
     required String value,
@@ -31,8 +39,22 @@ sealed class TaxationCharacteristicEvent {
   const factory TaxationCharacteristicEvent.added() =
       TaxationCharacteristicAdded;
 
+  const factory TaxationCharacteristicEvent.updated(int id) =
+      TaxationCharacteristicUpdated;
+
   const factory TaxationCharacteristicEvent.saved() =
       TaxationCharacteristicSaved;
+}
+
+final class TaxationCharacteristicLoaded extends TaxationCharacteristicEvent {
+  const TaxationCharacteristicLoaded();
+}
+
+final class TaxationCharacteristicRecordSelected
+    extends TaxationCharacteristicEvent {
+  const TaxationCharacteristicRecordSelected(this.record);
+
+  final TaxationCharacteristicRecord record;
 }
 
 final class TaxationCharacteristicFieldChanged
@@ -48,6 +70,12 @@ final class TaxationCharacteristicFieldChanged
 
 final class TaxationCharacteristicAdded extends TaxationCharacteristicEvent {
   const TaxationCharacteristicAdded();
+}
+
+final class TaxationCharacteristicUpdated extends TaxationCharacteristicEvent {
+  const TaxationCharacteristicUpdated(this.id);
+
+  final int id;
 }
 
 final class TaxationCharacteristicSaved extends TaxationCharacteristicEvent {
@@ -75,8 +103,10 @@ final class TaxationCharacteristicRecord {
     required this.sparseness,
     required this.commercialWoodOutput,
     required this.merchantabilityClass,
+    this.id,
   });
 
+  final int? id;
   final String? tier;
   final String dominantSpecies;
   final String compositionCoefficient;
@@ -87,7 +117,7 @@ final class TaxationCharacteristicRecord {
   final String stock;
   final String? forestType;
   final String? siteClass;
-  final String tlu;
+  final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
   final String canopyClosure;
@@ -109,7 +139,7 @@ final class TaxationCharacteristicState {
     this.stock = '',
     this.forestType,
     this.siteClass,
-    this.tlu = '',
+    this.tlu,
     this.plantationsTotal = '',
     this.coniferousTotal = '',
     this.canopyClosure = '',
@@ -131,7 +161,7 @@ final class TaxationCharacteristicState {
   final String stock;
   final String? forestType;
   final String? siteClass;
-  final String tlu;
+  final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
   final String canopyClosure;
@@ -191,10 +221,72 @@ final class TaxationCharacteristicState {
 
 final class TaxationCharacteristicBloc
     extends Bloc<TaxationCharacteristicEvent, TaxationCharacteristicState> {
-  TaxationCharacteristicBloc() : super(const TaxationCharacteristicState()) {
+  TaxationCharacteristicBloc({
+    required TaxationCharacteristicRepository repository,
+  }) : _repository = repository,
+       super(const TaxationCharacteristicState()) {
+    on<TaxationCharacteristicLoaded>(_onLoaded);
+    on<TaxationCharacteristicRecordSelected>(_onRecordSelected);
     on<TaxationCharacteristicFieldChanged>(_onFieldChanged);
     on<TaxationCharacteristicAdded>(_onAdded);
+    on<TaxationCharacteristicUpdated>(_onUpdated);
     on<TaxationCharacteristicSaved>(_onSaved);
+  }
+
+  final TaxationCharacteristicRepository _repository;
+
+  Future<void> _onLoaded(
+    TaxationCharacteristicLoaded event,
+    Emitter<TaxationCharacteristicState> emit,
+  ) async {
+    emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
+
+    try {
+      final records = await _repository.getAll();
+      emit(
+        state.copyWith(
+          records: records,
+          status: TaxationCharacteristicStatus.idle,
+        ),
+      );
+    } on Object catch (_) {
+      emit(
+        state.copyWith(
+          status: TaxationCharacteristicStatus.failure,
+          message: 'Не удалось загрузить таксационные записи',
+        ),
+      );
+    }
+  }
+
+  void _onRecordSelected(
+    TaxationCharacteristicRecordSelected event,
+    Emitter<TaxationCharacteristicState> emit,
+  ) {
+    final record = event.record;
+
+    emit(
+      state.copyWith(
+        tier: record.tier,
+        dominantSpecies: record.dominantSpecies,
+        compositionCoefficient: record.compositionCoefficient,
+        age: record.age,
+        averageHeight: record.averageHeight,
+        diameter: record.diameter,
+        density: record.density,
+        stock: record.stock,
+        forestType: record.forestType,
+        siteClass: record.siteClass,
+        tlu: record.tlu,
+        plantationsTotal: record.plantationsTotal,
+        coniferousTotal: record.coniferousTotal,
+        canopyClosure: record.canopyClosure,
+        sparseness: record.sparseness,
+        commercialWoodOutput: record.commercialWoodOutput,
+        merchantabilityClass: record.merchantabilityClass,
+        status: TaxationCharacteristicStatus.idle,
+      ),
+    );
   }
 
   void _onFieldChanged(
@@ -324,21 +416,70 @@ final class TaxationCharacteristicBloc
     TaxationCharacteristicAdded event,
     Emitter<TaxationCharacteristicState> emit,
   ) async {
-    await _completeSubmission(emit, addRecord: true);
+    final record = _createRecord();
+
+    emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
+
+    try {
+      final id = await _repository.insert(record);
+      final savedRecord = _createRecord(id: id);
+      emit(
+        state.copyWith(
+          records: [...state.records, savedRecord],
+          status: TaxationCharacteristicStatus.success,
+        ),
+      );
+    } on Object catch (_) {
+      emit(
+        state.copyWith(
+          status: TaxationCharacteristicStatus.failure,
+          message: 'Не удалось добавить запись в базу данных',
+        ),
+      );
+    }
+  }
+
+  Future<void> _onUpdated(
+    TaxationCharacteristicUpdated event,
+    Emitter<TaxationCharacteristicState> emit,
+  ) async {
+    final record = _createRecord(id: event.id);
+
+    emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
+
+    try {
+      await _repository.update(record);
+      emit(
+        state.copyWith(
+          records: [
+            for (final item in state.records)
+              if (item.id == event.id) record else item,
+          ],
+          status: TaxationCharacteristicStatus.success,
+        ),
+      );
+    } on Object catch (_) {
+      emit(
+        state.copyWith(
+          status: TaxationCharacteristicStatus.failure,
+          message: 'Не удалось изменить запись в базе данных',
+        ),
+      );
+    }
   }
 
   Future<void> _onSaved(
     TaxationCharacteristicSaved event,
     Emitter<TaxationCharacteristicState> emit,
   ) async {
-    await _completeSubmission(emit);
+    emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    emit(state.copyWith(status: TaxationCharacteristicStatus.success));
   }
 
-  Future<void> _completeSubmission(
-    Emitter<TaxationCharacteristicState> emit, {
-    bool addRecord = false,
-  }) async {
-    final record = TaxationCharacteristicRecord(
+  TaxationCharacteristicRecord _createRecord({int? id}) {
+    return TaxationCharacteristicRecord(
+      id: id,
       tier: state.tier,
       dominantSpecies: state.dominantSpecies,
       compositionCoefficient: state.compositionCoefficient,
@@ -356,21 +497,6 @@ final class TaxationCharacteristicBloc
       sparseness: state.sparseness,
       commercialWoodOutput: state.commercialWoodOutput,
       merchantabilityClass: state.merchantabilityClass,
-    );
-
-    emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
-    if (!addRecord) {
-      emit(state.copyWith(status: TaxationCharacteristicStatus.success));
-      return;
-    }
-
-    emit(
-      state.copyWith(
-        records: [...state.records, record],
-        status: TaxationCharacteristicStatus.success,
-      ),
     );
   }
 }
