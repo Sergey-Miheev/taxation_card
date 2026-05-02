@@ -56,8 +56,49 @@ final class TaxationCharacteristicSaved extends TaxationCharacteristicEvent {
 
 enum TaxationCharacteristicStatus { idle, loading, success, failure }
 
+final class TaxationCharacteristicRecord {
+  const TaxationCharacteristicRecord({
+    required this.tier,
+    required this.dominantSpecies,
+    required this.compositionCoefficient,
+    required this.age,
+    required this.averageHeight,
+    required this.diameter,
+    required this.density,
+    required this.stock,
+    required this.forestType,
+    required this.siteClass,
+    required this.tlu,
+    required this.plantationsTotal,
+    required this.coniferousTotal,
+    required this.canopyClosure,
+    required this.sparseness,
+    required this.commercialWoodOutput,
+    required this.merchantabilityClass,
+  });
+
+  final String? tier;
+  final String dominantSpecies;
+  final String compositionCoefficient;
+  final String age;
+  final String averageHeight;
+  final String diameter;
+  final String density;
+  final String stock;
+  final String? forestType;
+  final String? siteClass;
+  final String tlu;
+  final String plantationsTotal;
+  final String coniferousTotal;
+  final String canopyClosure;
+  final String sparseness;
+  final String commercialWoodOutput;
+  final String? merchantabilityClass;
+}
+
 final class TaxationCharacteristicState {
   const TaxationCharacteristicState({
+    this.records = const [],
     this.tier,
     this.dominantSpecies = '',
     this.compositionCoefficient = '',
@@ -79,6 +120,7 @@ final class TaxationCharacteristicState {
     this.message,
   });
 
+  final List<TaxationCharacteristicRecord> records;
   final String? tier;
   final String dominantSpecies;
   final String compositionCoefficient;
@@ -100,6 +142,7 @@ final class TaxationCharacteristicState {
   final String? message;
 
   TaxationCharacteristicState copyWith({
+    List<TaxationCharacteristicRecord>? records,
     String? tier,
     String? dominantSpecies,
     String? compositionCoefficient,
@@ -121,6 +164,7 @@ final class TaxationCharacteristicState {
     String? message,
   }) {
     return TaxationCharacteristicState(
+      records: records ?? this.records,
       tier: tier ?? this.tier,
       dominantSpecies: dominantSpecies ?? this.dominantSpecies,
       compositionCoefficient:
@@ -280,7 +324,7 @@ final class TaxationCharacteristicBloc
     TaxationCharacteristicAdded event,
     Emitter<TaxationCharacteristicState> emit,
   ) async {
-    await _completeSubmission(emit);
+    await _completeSubmission(emit, addRecord: true);
   }
 
   Future<void> _onSaved(
@@ -291,10 +335,42 @@ final class TaxationCharacteristicBloc
   }
 
   Future<void> _completeSubmission(
-    Emitter<TaxationCharacteristicState> emit,
-  ) async {
+    Emitter<TaxationCharacteristicState> emit, {
+    bool addRecord = false,
+  }) async {
+    final record = TaxationCharacteristicRecord(
+      tier: state.tier,
+      dominantSpecies: state.dominantSpecies,
+      compositionCoefficient: state.compositionCoefficient,
+      age: state.age,
+      averageHeight: state.averageHeight,
+      diameter: state.diameter,
+      density: state.density,
+      stock: state.stock,
+      forestType: state.forestType,
+      siteClass: state.siteClass,
+      tlu: state.tlu,
+      plantationsTotal: state.plantationsTotal,
+      coniferousTotal: state.coniferousTotal,
+      canopyClosure: state.canopyClosure,
+      sparseness: state.sparseness,
+      commercialWoodOutput: state.commercialWoodOutput,
+      merchantabilityClass: state.merchantabilityClass,
+    );
+
     emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    emit(state.copyWith(status: TaxationCharacteristicStatus.success));
+
+    if (!addRecord) {
+      emit(state.copyWith(status: TaxationCharacteristicStatus.success));
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        records: [...state.records, record],
+        status: TaxationCharacteristicStatus.success,
+      ),
+    );
   }
 }

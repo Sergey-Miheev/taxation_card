@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
+import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
 final class MainInfoScreen extends StatefulWidget {
@@ -121,6 +122,8 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
                       const SizedBox(height: 12),
                       _buildSamplePlotCard(),
                     ],
+                    const SizedBox(height: 16),
+                    _buildTaxationRecordsList(),
                     const SizedBox(height: 16),
                     _buildAddButton(),
                   ],
@@ -303,6 +306,30 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
     );
   }
 
+  Widget _buildTaxationRecordsList() {
+    return BlocBuilder<TaxationCharacteristicBloc, TaxationCharacteristicState>(
+      buildWhen: (previous, current) => previous.records != current.records,
+      builder: (context, state) {
+        if (state.records.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return _SectionCard(
+          title: 'Таксационные записи',
+          child: Column(
+            children: [
+              for (var index = 0; index < state.records.length; index++) ...[
+                _TaxationRecordTile(record: state.records[index]),
+                if (index != state.records.length - 1)
+                  const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildAddButton() {
     return SizedBox(
       width: double.infinity,
@@ -373,6 +400,52 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
           ],
         );
       },
+    );
+  }
+}
+
+final class _TaxationRecordTile extends StatelessWidget {
+  const _TaxationRecordTile({required this.record});
+
+  final TaxationCharacteristicRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(14);
+    final tier = record.tier ?? '-';
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: borderRadius,
+      child: InkWell(
+        borderRadius: borderRadius,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => const TaxationCharacteristicScreen(),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Ярус $tier',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
