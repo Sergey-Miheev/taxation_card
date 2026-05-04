@@ -20,9 +20,9 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(
+    return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -50,11 +50,15 @@ CREATE TABLE subject_districts (
 ''');
 
     await _createEyesTaxationTable(db);
+    await _createProbaInfoTable(db);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createEyesTaxationTable(db);
+    }
+    if (oldVersion < 3) {
+      await _createProbaInfoTable(db);
     }
   }
 
@@ -79,6 +83,22 @@ CREATE TABLE IF NOT EXISTS eyes_taxation (
   sparseness REAL NOT NULL,
   commercial_wood_output REAL NOT NULL,
   merchantability_class TEXT NOT NULL
+)
+''');
+  }
+
+  Future<void> _createProbaInfoTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS proba_info (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  region TEXT,
+  district TEXT,
+  forestry TEXT,
+  sub_forestry TEXT,
+  quarter INTEGER NOT NULL,
+  allotment INTEGER NOT NULL,
+  sample_plot_number INTEGER NOT NULL,
+  sample_plot_area REAL NOT NULL
 )
 ''');
   }
