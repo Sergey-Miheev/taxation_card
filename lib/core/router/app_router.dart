@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:taxation_card/core/router/routes.dart';
 import 'package:taxation_card/features/home/widget/home_tabs_screen.dart';
-import 'package:taxation_card/features/proba_info/widget/proba_info_screen.dart';
+import 'package:taxation_card/features/proba_info/widget/proba_info_list_screen.dart';
 
 final class AppRouter {
   AppRouter()
@@ -12,7 +12,7 @@ final class AppRouter {
           GoRoute(
             path: AppRoutes.probaInfo.path,
             name: AppRoutes.probaInfo.name,
-            builder: (context, state) => const ProbaInfoScreen(),
+            builder: (context, state) => const ProbaInfoListScreen(),
           ),
           GoRoute(
             path: AppRoutes.home.path,
