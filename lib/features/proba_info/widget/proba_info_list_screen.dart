@@ -107,7 +107,7 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
                 for (var index = 0; index < records.length; index++) ...[
                   _ProbaInfoTile(
                     record: records[index],
-                    onTap: () => _openMainInfo(records[index]),
+                    onTap: () => _openEyesTaxation(records[index]),
                     onEditPressed: () => _openProbaInfoForm(records[index]),
                   ),
                   if (index != records.length - 1) const SizedBox(height: 8),
