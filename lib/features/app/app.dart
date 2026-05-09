@@ -4,8 +4,8 @@ import 'package:taxation_card/core/resources/theme.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/di/data/dependencies.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
+import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
-import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -29,7 +29,9 @@ final class App extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<MainTabsBloc>.value(value: _dependencies.mainTabsBloc),
-          BlocProvider<MainInfoBloc>.value(value: _dependencies.mainInfoBloc),
+          BlocProvider<EyesTaxationBloc>.value(
+            value: _dependencies.eyesTaxationBloc,
+          ),
           BlocProvider<PermanentPpBloc>.value(
             value: _dependencies.permanentPpBloc,
           ),

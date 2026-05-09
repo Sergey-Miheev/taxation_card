@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
 
 enum MainTab {
-  mainInfo('Общая информация'),
+  eyesTaxation('Глазомерная таксация'),
   permanentPp('Перечётная ведомость'),
   undergrowth('Подрост/подлесок'),
   deadwood('Валёжник'),
@@ -25,7 +25,7 @@ final class MainTabSelected extends MainTabsEvent {
 }
 
 final class MainTabsState {
-  const MainTabsState({this.selectedTab = MainTab.mainInfo});
+  const MainTabsState({this.selectedTab = MainTab.eyesTaxation});
 
   final MainTab selectedTab;
 

@@ -5,14 +5,14 @@ import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_cha
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_csv_exporter.dart';
 import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
-final class MainInfoScreen extends StatefulWidget {
-  const MainInfoScreen({super.key});
+final class EyesTaxationScreen extends StatefulWidget {
+  const EyesTaxationScreen({super.key});
 
   @override
-  State<MainInfoScreen> createState() => _MainInfoScreenState();
+  State<EyesTaxationScreen> createState() => _EyesTaxationScreenState();
 }
 
-final class _MainInfoScreenState extends State<MainInfoScreen>
+final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
@@ -35,12 +35,12 @@ final class _MainInfoScreenState extends State<MainInfoScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Таксационные записи',
+                    'Глазомерная таксация',
                     style: theme.textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Добавьте таксационные характеристики и выгрузите их в CSV.',
+                    'Добавьте таксационные характеристики ярусов',
                     style: theme.textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 16),

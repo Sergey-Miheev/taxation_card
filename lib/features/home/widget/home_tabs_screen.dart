@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/features/deadwood/widget/deadwood_screen.dart';
+import 'package:taxation_card/features/eyes_taxation/widget/eyes_taxation_screen.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
-import 'package:taxation_card/features/main_info/widget/main_info_screen.dart';
 import 'package:taxation_card/features/permanent_PP/widget/permanent_pp_screen.dart';
 import 'package:taxation_card/features/soils/widget/soils_screen.dart';
 import 'package:taxation_card/features/undergrowth/widget/undergrowth_screen.dart';
@@ -64,7 +64,7 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
         body: TabBarView(
           controller: _tabController,
           children: const [
-            MainInfoScreen(),
+            EyesTaxationScreen(),
             PermanentPpScreen(),
             UndergrowthScreen(),
             DeadwoodScreen(),

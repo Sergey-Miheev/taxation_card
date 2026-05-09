@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'main_info_bloc.freezed.dart';
+part 'eyes_taxation_bloc.freezed.dart';
 
-enum MainInfoSubmissionStatus { idle, loading, success, failure }
+enum EyesTaxationSubmissionStatus { idle, loading, success, failure }
 
 @freezed
-abstract class MainInfoFormData with _$MainInfoFormData {
-  const factory MainInfoFormData({
+abstract class EyesTaxationFormData with _$EyesTaxationFormData {
+  const factory EyesTaxationFormData({
     String? region,
     String? district,
     String? forestry,
@@ -18,47 +18,52 @@ abstract class MainInfoFormData with _$MainInfoFormData {
     @Default(0) int allotment,
     @Default(0) int samplePlotNumber,
     @Default(0) double samplePlotArea,
-  }) = _MainInfoFormData;
+  }) = _EyesTaxationFormData;
 }
 
 @freezed
-sealed class MainInfoEvent with _$MainInfoEvent {
-  const factory MainInfoEvent.regionChanged(String? region) = _RegionChanged;
+sealed class EyesTaxationEvent with _$EyesTaxationEvent {
+  const factory EyesTaxationEvent.regionChanged(String? region) =
+      _RegionChanged;
 
-  const factory MainInfoEvent.districtChanged(String? district) =
+  const factory EyesTaxationEvent.districtChanged(String? district) =
       _DistrictChanged;
 
-  const factory MainInfoEvent.forestryChanged(String? forestry) =
+  const factory EyesTaxationEvent.forestryChanged(String? forestry) =
       _ForestryChanged;
 
-  const factory MainInfoEvent.subForestryChanged(String? subForestry) =
+  const factory EyesTaxationEvent.subForestryChanged(String? subForestry) =
       _SubForestryChanged;
 
-  const factory MainInfoEvent.quarterChanged(String quarter) = _QuarterChanged;
+  const factory EyesTaxationEvent.quarterChanged(String quarter) =
+      _QuarterChanged;
 
-  const factory MainInfoEvent.allotmentChanged(String allotment) =
+  const factory EyesTaxationEvent.allotmentChanged(String allotment) =
       _AllotmentChanged;
 
-  const factory MainInfoEvent.samplePlotNumberChanged(String samplePlotNumber) =
-      _SamplePlotNumberChanged;
+  const factory EyesTaxationEvent.samplePlotNumberChanged(
+    String samplePlotNumber,
+  ) = _SamplePlotNumberChanged;
 
-  const factory MainInfoEvent.samplePlotAreaChanged(String samplePlotArea) =
+  const factory EyesTaxationEvent.samplePlotAreaChanged(String samplePlotArea) =
       _SamplePlotAreaChanged;
 
-  const factory MainInfoEvent.sentInfo() = _SentInfo;
+  const factory EyesTaxationEvent.sentInfo() = _SentInfo;
 }
 
 @freezed
-abstract class MainInfoState with _$MainInfoState {
-  const factory MainInfoState({
-    @Default(MainInfoFormData()) MainInfoFormData data,
-    @Default(MainInfoSubmissionStatus.idle) MainInfoSubmissionStatus status,
+abstract class EyesTaxationState with _$EyesTaxationState {
+  const factory EyesTaxationState({
+    @Default(EyesTaxationFormData()) EyesTaxationFormData data,
+    @Default(EyesTaxationSubmissionStatus.idle)
+    EyesTaxationSubmissionStatus status,
     String? message,
-  }) = _MainInfoState;
+  }) = _EyesTaxationState;
 }
 
-final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
-  MainInfoBloc() : super(const MainInfoState()) {
+final class EyesTaxationBloc
+    extends Bloc<EyesTaxationEvent, EyesTaxationState> {
+  EyesTaxationBloc() : super(const EyesTaxationState()) {
     on<_RegionChanged>(_onRegionChanged);
     on<_DistrictChanged>(_onDistrictChanged);
     on<_ForestryChanged>(_onForestryChanged);
@@ -70,31 +75,37 @@ final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
     on<_SentInfo>(_onSentInfo);
   }
 
-  void _onRegionChanged(_RegionChanged event, Emitter<MainInfoState> emit) {
+  void _onRegionChanged(_RegionChanged event, Emitter<EyesTaxationState> emit) {
     emit(
       state.copyWith(
         data: state.data.copyWith(region: event.region, district: null),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
   }
 
-  void _onDistrictChanged(_DistrictChanged event, Emitter<MainInfoState> emit) {
+  void _onDistrictChanged(
+    _DistrictChanged event,
+    Emitter<EyesTaxationState> emit,
+  ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(district: event.district),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
   }
 
-  void _onForestryChanged(_ForestryChanged event, Emitter<MainInfoState> emit) {
+  void _onForestryChanged(
+    _ForestryChanged event,
+    Emitter<EyesTaxationState> emit,
+  ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(forestry: event.forestry),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
@@ -102,22 +113,25 @@ final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
 
   void _onSubForestryChanged(
     _SubForestryChanged event,
-    Emitter<MainInfoState> emit,
+    Emitter<EyesTaxationState> emit,
   ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(subForestry: event.subForestry),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
   }
 
-  void _onQuarterChanged(_QuarterChanged event, Emitter<MainInfoState> emit) {
+  void _onQuarterChanged(
+    _QuarterChanged event,
+    Emitter<EyesTaxationState> emit,
+  ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(quarter: int.tryParse(event.quarter) ?? 0),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
@@ -125,14 +139,14 @@ final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
 
   void _onAllotmentChanged(
     _AllotmentChanged event,
-    Emitter<MainInfoState> emit,
+    Emitter<EyesTaxationState> emit,
   ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(
           allotment: int.tryParse(event.allotment) ?? 0,
         ),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
@@ -140,14 +154,14 @@ final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
 
   void _onSamplePlotNumberChanged(
     _SamplePlotNumberChanged event,
-    Emitter<MainInfoState> emit,
+    Emitter<EyesTaxationState> emit,
   ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(
           samplePlotNumber: int.tryParse(event.samplePlotNumber) ?? 0,
         ),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
@@ -155,31 +169,37 @@ final class MainInfoBloc extends Bloc<MainInfoEvent, MainInfoState> {
 
   void _onSamplePlotAreaChanged(
     _SamplePlotAreaChanged event,
-    Emitter<MainInfoState> emit,
+    Emitter<EyesTaxationState> emit,
   ) {
     emit(
       state.copyWith(
         data: state.data.copyWith(
           samplePlotArea: double.tryParse(event.samplePlotArea) ?? 0,
         ),
-        status: MainInfoSubmissionStatus.idle,
+        status: EyesTaxationSubmissionStatus.idle,
         message: null,
       ),
     );
   }
 
-  Future<void> _onSentInfo(_SentInfo event, Emitter<MainInfoState> emit) async {
+  Future<void> _onSentInfo(
+    _SentInfo event,
+    Emitter<EyesTaxationState> emit,
+  ) async {
     emit(
-      state.copyWith(status: MainInfoSubmissionStatus.loading, message: null),
+      state.copyWith(
+        status: EyesTaxationSubmissionStatus.loading,
+        message: null,
+      ),
     );
 
     try {
       await Future<void>.delayed(const Duration(milliseconds: 700));
-      emit(state.copyWith(status: MainInfoSubmissionStatus.success));
+      emit(state.copyWith(status: EyesTaxationSubmissionStatus.success));
     } on Object catch (_) {
       emit(
         state.copyWith(
-          status: MainInfoSubmissionStatus.failure,
+          status: EyesTaxationSubmissionStatus.failure,
           message: 'Не удалось отправить данные.',
         ),
       );
