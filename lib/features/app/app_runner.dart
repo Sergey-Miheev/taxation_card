@@ -11,6 +11,7 @@ import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/main_info/bloc/main_info_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
+import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -30,6 +31,9 @@ final class AppRunner {
     final database = await DatabaseHelper.instance.database;
     final subjectsRepository = SubjectsRepository(database: database);
     final probaInfoRepository = ProbaInfoRepository(database: database);
+    final treeInformationRepository = TreeInformationRepository(
+      database: database,
+    );
     final taxationCharacteristicRepository = TaxationCharacteristicRepository(
       database: database,
     );
@@ -40,13 +44,14 @@ final class AppRunner {
     final dependencies = Dependencies(
       mainTabsBloc: MainTabsBloc(),
       mainInfoBloc: MainInfoBloc(),
-      permanentPpBloc: PermanentPpBloc(),
+      permanentPpBloc: PermanentPpBloc(repository: treeInformationRepository),
       undergrowthBloc: UndergrowthBloc(),
       deadwoodBloc: DeadwoodBloc(),
       soilsBloc: SoilsBloc(),
       taxationCharacteristicBloc: taxationCharacteristicBloc,
       subjectsRepository: subjectsRepository,
       probaInfoRepository: probaInfoRepository,
+      treeInformationRepository: treeInformationRepository,
       taxationCharacteristicRepository: taxationCharacteristicRepository,
     );
 

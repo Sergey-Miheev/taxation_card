@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
+import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 
 final class PermanentPpScreen extends StatefulWidget {
   const PermanentPpScreen({super.key});
@@ -117,6 +119,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   String? _selectedDynamicElement;
   final List<int> _selectedGridNumbers = [];
   int? _selectedRightColumnNumber;
+  int? _loadedProbaInfoId;
 
   @override
   void dispose() {
@@ -129,23 +132,30 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+    final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
+      (bloc) => bloc.state.selectedProbaInfoId,
+    );
+    _loadRecordsIfNeeded(selectedProbaInfoId);
 
     return BlocListener<PermanentPpBloc, PermanentPpState>(
       listener: (context, state) {
-        state.whenOrNull(
-          success: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Данные сохранены.')));
-          },
-          failure: (message) {
+        switch (state.status) {
+          case PermanentPpStatus.success:
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message ?? 'Данные сохранены.')),
+            );
+          case PermanentPpStatus.failure:
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(message ?? 'Не удалось сохранить данные.'),
+                content: Text(
+                  state.message ?? 'Не удалось выполнить действие.',
+                ),
               ),
             );
-          },
-        );
+          case PermanentPpStatus.idle:
+          case PermanentPpStatus.loading:
+            break;
+        }
       },
       child: Scaffold(
         bottomNavigationBar: SafeArea(
@@ -154,14 +164,11 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: BlocBuilder<PermanentPpBloc, PermanentPpState>(
               builder: (context, state) {
-                final isLoading = state.maybeWhen(
-                  loading: () => true,
-                  orElse: () => false,
-                );
+                final isLoading = state.isLoading;
 
-                return ElevatedButton(
+                return FilledButton(
                   onPressed: isLoading ? null : _onSavePressed,
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -171,7 +178,10 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                       ? const SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Сохранить'),
                 );
@@ -225,8 +235,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                             selected: isSelected,
                             onSelected: (selected) {
                               setState(() {
-                                _selectedDynamicElement =
-                                    selected ? element : null;
+                                _selectedDynamicElement = selected
+                                    ? element
+                                    : null;
                               });
                             },
                             onDeleted: () {
@@ -241,7 +252,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            backgroundColor: theme.colorScheme.secondaryContainer
+                            backgroundColor: theme
+                                .colorScheme
+                                .secondaryContainer
                                 .withValues(alpha: 0.5),
                           ),
                         );
@@ -258,7 +271,10 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Сетка участков (выберите 2)', style: theme.textTheme.labelLarge),
+                Text(
+                  'Сетка участков (выберите 2)',
+                  style: theme.textTheme.labelLarge,
+                ),
                 const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +287,6 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                           border: Border(
                             right: BorderSide(
                               color: theme.colorScheme.outlineVariant,
-                              width: 1,
                             ),
                           ),
                         ),
@@ -280,15 +295,16 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 10,
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 4,
-                          ),
+                                crossAxisCount: 10,
+                                mainAxisSpacing: 4,
+                                crossAxisSpacing: 4,
+                              ),
                           itemCount: 100,
                           itemBuilder: (context, index) {
                             final number = index + 1;
-                            final isSelected =
-                                _selectedGridNumbers.contains(number);
+                            final isSelected = _selectedGridNumbers.contains(
+                              number,
+                            );
                             return GestureDetector(
                               onTap: () {
                                 setState(() {
@@ -303,7 +319,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? theme.colorScheme.primary
-                                      : theme.colorScheme.surfaceContainerHighest,
+                                      : theme
+                                            .colorScheme
+                                            .surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 alignment: Alignment.center,
@@ -327,15 +345,14 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      flex: 1,
                       child: GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 1,
-                          mainAxisSpacing: 4,
-                        ),
+                              crossAxisCount: 1,
+                              mainAxisSpacing: 4,
+                            ),
                         itemCount: 10,
                         itemBuilder: (context, index) {
                           final number = 9 - index;
@@ -356,7 +373,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                                 color: isSelected
                                     ? theme.colorScheme.secondary
                                     : theme.colorScheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.5),
+                                          .withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               alignment: Alignment.center,
@@ -400,6 +417,16 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                BlocBuilder<PermanentPpBloc, PermanentPpState>(
+                  builder: (context, state) {
+                    return _buildRecentRecords(
+                      context: context,
+                      records: state.records,
+                      selectedProbaInfoId: selectedProbaInfoId,
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
               ],
             ),
@@ -411,6 +438,130 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
 
   @override
   bool get wantKeepAlive => true;
+
+  Widget _buildRecentRecords({
+    required BuildContext context,
+    required List<TreeInformationRecord> records,
+    required int? selectedProbaInfoId,
+  }) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Последние записи', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (selectedProbaInfoId == null)
+          Text(
+            'Сначала выберите пробную площадь.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else if (records.isEmpty)
+          Text(
+            'Записей пока нет.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          ...records
+              .take(4)
+              .map(
+                (record) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                      title: Text(
+                        _formatRecordTitle(record),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        _formatRecordSubtitle(record),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Удалить запись',
+                        onPressed: record.id == null
+                            ? null
+                            : () =>
+                                  _onDeleteRecord(record, selectedProbaInfoId),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+      ],
+    );
+  }
+
+  void _loadRecordsIfNeeded(int? selectedProbaInfoId) {
+    if (_loadedProbaInfoId == selectedProbaInfoId) {
+      return;
+    }
+
+    _loadedProbaInfoId = selectedProbaInfoId;
+    if (selectedProbaInfoId == null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      context.read<PermanentPpBloc>().add(
+        PermanentPpEvent.loaded(selectedProbaInfoId),
+      );
+    });
+  }
+
+  void _onDeleteRecord(TreeInformationRecord record, int selectedProbaInfoId) {
+    final id = record.id;
+    if (id == null) {
+      return;
+    }
+
+    context.read<PermanentPpBloc>().add(
+      PermanentPpEvent.deleted(id: id, probaInfoId: selectedProbaInfoId),
+    );
+  }
+
+  String _formatRecordTitle(TreeInformationRecord record) {
+    final species = record.species?.trim();
+    final woodQuality = record.woodQuality?.trim();
+
+    if (species != null && species.isNotEmpty) {
+      return species;
+    }
+    if (woodQuality != null && woodQuality.isNotEmpty) {
+      return woodQuality;
+    }
+
+    return 'Запись #${record.id ?? '-'}';
+  }
+
+  String _formatRecordSubtitle(TreeInformationRecord record) {
+    final parts = <String>[
+      'D1: ${record.d1}',
+      'D2: ${record.d2}',
+      if (record.rightColumnNumber != null) 'ряд: ${record.rightColumnNumber}',
+      if (record.treeAge != null) 'возраст: ${record.treeAge}',
+      if (record.treeHeight != null) 'высота: ${record.treeHeight}',
+    ];
+
+    return parts.join(' • ');
+  }
 
   DropdownButtonFormField<String> _buildDropdownField({
     required String labelText,
@@ -447,8 +598,11 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       controller: controller,
       keyboardType: TextInputType.numberWithOptions(decimal: allowDecimal),
       decoration: _inputDecoration(labelText: labelText),
-      validator: (value) =>
-          _validatePositiveNumber(value, allowDecimal: allowDecimal, optional: optional),
+      validator: (value) => _validatePositiveNumber(
+        value,
+        allowDecimal: allowDecimal,
+        optional: optional,
+      ),
     );
   }
 
@@ -466,8 +620,11 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     );
   }
 
-  String? _validatePositiveNumber(String? value,
-      {required bool allowDecimal, bool optional = false}) {
+  String? _validatePositiveNumber(
+    String? value, {
+    required bool allowDecimal,
+    bool optional = false,
+  }) {
     if (value == null || value.trim().isEmpty) {
       return optional ? null : 'Заполните поле';
     }
@@ -494,7 +651,54 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       return;
     }
 
-    context.read<PermanentPpBloc>().add(const PermanentPpEvent.sentInfo());
+    final selectedProbaInfoId = context
+        .read<MainTabsBloc>()
+        .state
+        .selectedProbaInfoId;
+    if (selectedProbaInfoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сначала выберите пробную площадь.')),
+      );
+      return;
+    }
+
+    if (_selectedGridNumbers.length != 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите два значения диаметра.')),
+      );
+      return;
+    }
+
+    final record = TreeInformationRecord(
+      probaInfoId: selectedProbaInfoId,
+      woodQuality: _selectedWoodQuality,
+      species: _selectedDynamicElement,
+      d1: _selectedGridNumbers[0],
+      d2: _selectedGridNumbers[1],
+      rightColumnNumber: _selectedRightColumnNumber,
+      treeAge: _parseOptionalInt(_treeAgeController.text),
+      treeHeight: _parseOptionalDouble(_treeHeightController.text),
+    );
+
+    context.read<PermanentPpBloc>().add(PermanentPpEvent.sentInfo(record));
+  }
+
+  int? _parseOptionalInt(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return int.parse(trimmed);
+  }
+
+  double? _parseOptionalDouble(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    return double.parse(trimmed.replaceAll(',', '.'));
   }
 
   Future<void> _showSpeciesDialog() async {
@@ -549,6 +753,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
         if (!_dynamicElements.contains(result)) {
           _dynamicElements.add(result);
         }
+        _selectedDynamicElement = result;
       });
     }
   }
