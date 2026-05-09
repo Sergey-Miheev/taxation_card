@@ -107,7 +107,7 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
                 for (var index = 0; index < records.length; index++) ...[
                   _ProbaInfoTile(
                     record: records[index],
-                    onTap: _openEyesTaxation,
+                    onTap: () => _openMainInfo(records[index]),
                     onEditPressed: () => _openProbaInfoForm(records[index]),
                   ),
                   if (index != records.length - 1) const SizedBox(height: 8),
@@ -153,10 +153,15 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
     });
   }
 
-  void _openEyesTaxation() {
-    context.read<MainTabsBloc>().add(
-      const MainTabsEvent.tabSelected(MainTab.eyesTaxation),
-    );
+  void _openEyesTaxation(ProbaInfoRecord record) {
+    final id = record.id;
+    if (id == null) {
+      return;
+    }
+
+    context.read<MainTabsBloc>()
+      ..add(MainTabsEvent.probaInfoSelected(id))
+      ..add(const MainTabsEvent.tabSelected(MainTab.eyesTaxation));
     context.go(AppRoutes.home.path);
   }
 }

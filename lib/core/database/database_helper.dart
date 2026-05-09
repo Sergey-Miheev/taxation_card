@@ -22,7 +22,10 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -51,6 +54,7 @@ CREATE TABLE subject_districts (
 
     await _createEyesTaxationTable(db);
     await _createProbaInfoTable(db);
+    await _createTreeInformationTable(db);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -59,6 +63,9 @@ CREATE TABLE subject_districts (
     }
     if (oldVersion < 3) {
       await _createProbaInfoTable(db);
+    }
+    if (oldVersion < 4) {
+      await _createTreeInformationTable(db);
     }
   }
 
@@ -99,6 +106,23 @@ CREATE TABLE IF NOT EXISTS proba_info (
   allotment INTEGER NOT NULL,
   sample_plot_number INTEGER NOT NULL,
   sample_plot_area REAL NOT NULL
+)
+''');
+  }
+
+  Future<void> _createTreeInformationTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS tree_information (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proba_info_id INTEGER NOT NULL,
+  wood_quality TEXT,
+  species TEXT,
+  d1 INTEGER NOT NULL,
+  d2 INTEGER NOT NULL,
+  right_column_number INTEGER,
+  tree_age INTEGER,
+  tree_height REAL,
+  FOREIGN KEY (proba_info_id) REFERENCES proba_info (id) ON DELETE CASCADE
 )
 ''');
   }
