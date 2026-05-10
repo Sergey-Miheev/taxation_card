@@ -5,18 +5,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/constants/constants.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
-import 'package:taxation_card/features/undergrowth/domain/undergrowth_repository.dart';
+import 'package:taxation_card/features/understory/domain/understory_repository.dart';
 
-final class UndergrowthScreen extends StatefulWidget {
-  const UndergrowthScreen({super.key});
+final class UnderstoryScreen extends StatefulWidget {
+  const UnderstoryScreen({super.key});
 
   @override
-  State<UndergrowthScreen> createState() => _UndergrowthScreenState();
+  State<UnderstoryScreen> createState() => _UnderstoryScreenState();
 }
 
-final class _UndergrowthScreenState extends State<UndergrowthScreen>
+final class _UnderstoryScreenState extends State<UnderstoryScreen>
     with AutomaticKeepAliveClientMixin {
-  final List<_UndergrowthTableRow> _rows = [];
+  final List<_UnderstoryTableRow> _rows = [];
   int? _selectedIndex;
   int? _loadedProbaInfoId;
   bool _isLoading = false;
@@ -38,12 +38,12 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Подрост', style: theme.textTheme.headlineMedium),
+                Text('Подлесок', style: theme.textTheme.headlineMedium),
                 const SizedBox(height: 8),
                 Text(
                   selectedProbaInfoId == null
-                      ? 'Выберите пробную площадь, чтобы заполнить подрост.'
-                      : 'Заполните показатели мелкого, среднего и крупного подроста.',
+                      ? 'Выберите пробную площадь, чтобы заполнить подлесок.'
+                      : 'Заполните показатели мелкого, среднего и крупного подлеска.',
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 16),
@@ -53,7 +53,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
                 ],
                 Expanded(
                   child: _ScrollableTableCard(
-                    child: _UndergrowthEditableTable(
+                    child: _UnderstoryEditableTable(
                       rows: _rows,
                       selectedIndex: _selectedIndex,
                       onRowSelected: (index) {
@@ -66,7 +66,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
                 const SizedBox(height: 12),
                 Expanded(
                   child: _ScrollableTableCard(
-                    child: _LargeUndergrowthEditableTable(
+                    child: _LargeUnderstoryEditableTable(
                       rows: _rows,
                       selectedIndex: _selectedIndex,
                       onRowSelected: (index) {
@@ -123,8 +123,8 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
   bool get wantKeepAlive => true;
 
   Future<void> _addRow(int probaInfoId) async {
-    final repository = DependenciesScope.of(context).undergrowthRepository;
-    final row = _UndergrowthTableRow.empty(probaInfoId: probaInfoId);
+    final repository = DependenciesScope.of(context).understoryRepository;
+    final row = _UnderstoryTableRow.empty(probaInfoId: probaInfoId);
 
     try {
       final id = await repository.insert(row.toRecord());
@@ -134,7 +134,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось добавить запись подроста.')),
+        const SnackBar(content: Text('Не удалось добавить запись подлеска.')),
       );
       return;
     }
@@ -155,7 +155,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
       return;
     }
 
-    final repository = DependenciesScope.of(context).undergrowthRepository;
+    final repository = DependenciesScope.of(context).understoryRepository;
     final row = _rows[selectedIndex];
     final id = row.id;
 
@@ -167,7 +167,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось удалить запись подроста.')),
+          const SnackBar(content: Text('Не удалось удалить запись подлеска.')),
         );
         return;
       }
@@ -204,7 +204,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
       return;
     }
 
-    final repository = DependenciesScope.of(context).undergrowthRepository;
+    final repository = DependenciesScope.of(context).understoryRepository;
     _rows.clear();
     _isLoading = true;
 
@@ -219,7 +219,7 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
             setState(() {
               _rows
                 ..clear()
-                ..addAll(records.map(_UndergrowthTableRow.fromRecord));
+                ..addAll(records.map(_UnderstoryTableRow.fromRecord));
               _isLoading = false;
             });
           })
@@ -231,14 +231,14 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
             setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Не удалось загрузить записи подроста.'),
+                content: Text('Не удалось загрузить записи подлеска.'),
               ),
             );
           }),
     );
   }
 
-  Future<void> _updateRow(_UndergrowthTableRow row) async {
+  Future<void> _updateRow(_UnderstoryTableRow row) async {
     final id = row.id;
     if (id == null) {
       return;
@@ -247,14 +247,14 @@ final class _UndergrowthScreenState extends State<UndergrowthScreen>
     try {
       await DependenciesScope.of(
         context,
-      ).undergrowthRepository.update(row.toRecord());
+      ).understoryRepository.update(row.toRecord());
     } on Object catch (_) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось обновить запись подроста.')),
+        const SnackBar(content: Text('Не удалось обновить запись подлеска.')),
       );
     }
   }
@@ -282,18 +282,18 @@ final class _ScrollableTableCard extends StatelessWidget {
   }
 }
 
-final class _UndergrowthEditableTable extends StatelessWidget {
-  const _UndergrowthEditableTable({
+final class _UnderstoryEditableTable extends StatelessWidget {
+  const _UnderstoryEditableTable({
     required this.rows,
     required this.selectedIndex,
     required this.onRowSelected,
     required this.onRowFocusLost,
   });
 
-  final List<_UndergrowthTableRow> rows;
+  final List<_UnderstoryTableRow> rows;
   final int? selectedIndex;
   final ValueChanged<int> onRowSelected;
-  final ValueChanged<_UndergrowthTableRow> onRowFocusLost;
+  final ValueChanged<_UnderstoryTableRow> onRowFocusLost;
 
   static const _borderColor = Color(0xFFE0E0E0);
   static const _rowHeight = 56.0;
@@ -327,7 +327,7 @@ final class _UndergrowthEditableTable extends StatelessWidget {
               _HeaderCell(text: '№\nуч.\nпл.', height: 56),
               _HeaderCell(text: 'Древесная\nпорода', height: 56),
               _HeaderCell(text: 'Происхо-\nждение', height: 56),
-              _HeaderCell(text: 'Мелкий, средний подрост', height: 56),
+              _HeaderCell(text: 'Мелкий, средний подлесок', height: 56),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
@@ -403,7 +403,7 @@ final class _UndergrowthEditableTable extends StatelessWidget {
   TableRow _buildDataRow({
     required BuildContext context,
     required int index,
-    required _UndergrowthTableRow row,
+    required _UnderstoryTableRow row,
     required bool isSelected,
     required ThemeData theme,
   }) {
@@ -512,18 +512,18 @@ final class _UndergrowthEditableTable extends StatelessWidget {
   }
 }
 
-final class _LargeUndergrowthEditableTable extends StatelessWidget {
-  const _LargeUndergrowthEditableTable({
+final class _LargeUnderstoryEditableTable extends StatelessWidget {
+  const _LargeUnderstoryEditableTable({
     required this.rows,
     required this.selectedIndex,
     required this.onRowSelected,
     required this.onRowFocusLost,
   });
 
-  final List<_UndergrowthTableRow> rows;
+  final List<_UnderstoryTableRow> rows;
   final int? selectedIndex;
   final ValueChanged<int> onRowSelected;
-  final ValueChanged<_UndergrowthTableRow> onRowFocusLost;
+  final ValueChanged<_UnderstoryTableRow> onRowFocusLost;
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +531,7 @@ final class _LargeUndergrowthEditableTable extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: _UndergrowthEditableTable._borderColor),
+        border: Border.all(color: _UnderstoryEditableTable._borderColor),
       ),
       child: Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -558,7 +558,7 @@ final class _LargeUndergrowthEditableTable extends StatelessWidget {
             children: [
               _HeaderCell(text: '', height: 56),
               _HeaderCell(text: '№\nуч.\nпл.', height: 56),
-              _HeaderCell(text: 'Крупный подрост', height: 56),
+              _HeaderCell(text: 'Крупный подлесок', height: 56),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
@@ -650,7 +650,7 @@ final class _LargeUndergrowthEditableTable extends StatelessWidget {
 
   TableRow _buildDataRow({
     required int index,
-    required _UndergrowthTableRow row,
+    required _UnderstoryTableRow row,
     required bool isSelected,
     required ThemeData theme,
   }) {
@@ -780,8 +780,8 @@ final class _LargeUndergrowthEditableTable extends StatelessWidget {
   }
 }
 
-final class _UndergrowthTableRow {
-  _UndergrowthTableRow({
+final class _UnderstoryTableRow {
+  _UnderstoryTableRow({
     required this.probaInfoId,
     required this.plotNumber,
     required this.species,
@@ -809,8 +809,8 @@ final class _UndergrowthTableRow {
     this.id,
   });
 
-  factory _UndergrowthTableRow.empty({required int probaInfoId}) {
-    return _UndergrowthTableRow(
+  factory _UnderstoryTableRow.empty({required int probaInfoId}) {
+    return _UnderstoryTableRow(
       probaInfoId: probaInfoId,
       plotNumber: '0',
       species: '',
@@ -838,8 +838,8 @@ final class _UndergrowthTableRow {
     );
   }
 
-  factory _UndergrowthTableRow.fromRecord(UndergrowthRecord record) {
-    return _UndergrowthTableRow(
+  factory _UnderstoryTableRow.fromRecord(UnderstoryRecord record) {
+    return _UnderstoryTableRow(
       id: record.id,
       probaInfoId: record.probaInfoId,
       plotNumber: record.plotNumber.toString(),
@@ -896,8 +896,8 @@ final class _UndergrowthTableRow {
 
   String get keySuffix => id?.toString() ?? identityHashCode(this).toString();
 
-  UndergrowthRecord toRecord() {
-    return UndergrowthRecord(
+  UnderstoryRecord toRecord() {
+    return UnderstoryRecord(
       id: id,
       probaInfoId: probaInfoId,
       plotNumber: _parseInt(plotNumber),
@@ -968,7 +968,7 @@ final class _HeaderCell extends StatelessWidget {
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        border: Border.all(color: _UndergrowthEditableTable._borderColor),
+        border: Border.all(color: _UnderstoryEditableTable._borderColor),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
@@ -1002,10 +1002,10 @@ final class _SelectableIndexCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: _UndergrowthEditableTable._rowHeight,
+        height: _UnderstoryEditableTable._rowHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          border: Border.all(color: _UndergrowthEditableTable._borderColor),
+          border: Border.all(color: _UnderstoryEditableTable._borderColor),
         ),
         child: Text(
           text,
@@ -1030,10 +1030,10 @@ final class _ReadOnlyTableCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: _UndergrowthEditableTable._rowHeight,
+        height: _UnderstoryEditableTable._rowHeight,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          border: Border.all(color: _UndergrowthEditableTable._borderColor),
+          border: Border.all(color: _UnderstoryEditableTable._borderColor),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Text(text, textAlign: TextAlign.center),
@@ -1089,10 +1089,10 @@ final class _EditableTableCellState extends State<_EditableTableCell> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: _UndergrowthEditableTable._rowHeight,
+      height: _UnderstoryEditableTable._rowHeight,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        border: Border.all(color: _UndergrowthEditableTable._borderColor),
+        border: Border.all(color: _UnderstoryEditableTable._borderColor),
       ),
       child: TextFormField(
         focusNode: _focusNode,
@@ -1129,10 +1129,10 @@ final class _DropdownTableCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: _UndergrowthEditableTable._rowHeight,
+      height: _UnderstoryEditableTable._rowHeight,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        border: Border.all(color: _UndergrowthEditableTable._borderColor),
+        border: Border.all(color: _UnderstoryEditableTable._borderColor),
       ),
       child: DropdownButtonFormField<String>(
         key: cellKey,

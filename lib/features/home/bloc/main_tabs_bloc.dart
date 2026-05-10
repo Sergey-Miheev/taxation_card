@@ -3,7 +3,8 @@ import 'package:bloc/bloc.dart';
 enum MainTab {
   eyesTaxation('Глазомерная таксация'),
   permanentPp('Перечётная ведомость'),
-  undergrowth('Подрост/подлесок'),
+  undergrowth('Подрост'),
+  understory('Подлесок'),
   deadwood('Валёжник'),
   soils('Почвы');
 
@@ -34,7 +35,8 @@ final class ProbaInfoSelected extends MainTabsEvent {
 }
 
 final class MainTabsState {
-  const MainTabsState({this.selectedTab = MainTab.eyesTaxation,
+  const MainTabsState({
+    this.selectedTab = MainTab.eyesTaxation,
     this.selectedProbaInfoId,
   });
 

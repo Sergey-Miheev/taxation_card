@@ -6,6 +6,7 @@ import 'package:taxation_card/core/database/database_helper.dart';
 import 'package:taxation_card/core/router/app_router.dart';
 import 'package:taxation_card/features/app/app.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
+import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/di/data/dependencies.dart';
 import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
@@ -17,6 +18,8 @@ import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
+import 'package:taxation_card/features/undergrowth/domain/undergrowth_repository.dart';
+import 'package:taxation_card/features/understory/domain/understory_repository.dart';
 
 final class AppRunner {
   const AppRunner();
@@ -37,6 +40,9 @@ final class AppRunner {
     final taxationCharacteristicRepository = TaxationCharacteristicRepository(
       database: database,
     );
+    final undergrowthRepository = UndergrowthRepository(database: database);
+    final understoryRepository = UnderstoryRepository(database: database);
+    final deadwoodRepository = DeadwoodRepository(database: database);
     final taxationCharacteristicBloc = TaxationCharacteristicBloc(
       repository: taxationCharacteristicRepository,
     )..add(const TaxationCharacteristicEvent.loaded());
@@ -46,13 +52,16 @@ final class AppRunner {
       eyesTaxationBloc: EyesTaxationBloc(),
       permanentPpBloc: PermanentPpBloc(repository: treeInformationRepository),
       undergrowthBloc: UndergrowthBloc(),
-      deadwoodBloc: DeadwoodBloc(),
+      deadwoodBloc: DeadwoodBloc(repository: deadwoodRepository),
       soilsBloc: SoilsBloc(),
       taxationCharacteristicBloc: taxationCharacteristicBloc,
       subjectsRepository: subjectsRepository,
       probaInfoRepository: probaInfoRepository,
       treeInformationRepository: treeInformationRepository,
+      deadwoodRepository: deadwoodRepository,
       taxationCharacteristicRepository: taxationCharacteristicRepository,
+      undergrowthRepository: undergrowthRepository,
+      understoryRepository: understoryRepository,
     );
 
     runApp(App(routerConfig: AppRouter().config, dependencies: dependencies));

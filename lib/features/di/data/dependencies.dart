@@ -1,4 +1,5 @@
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
+import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
@@ -9,6 +10,8 @@ import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
+import 'package:taxation_card/features/undergrowth/domain/undergrowth_repository.dart';
+import 'package:taxation_card/features/understory/domain/understory_repository.dart';
 
 final class Dependencies {
   const Dependencies({
@@ -22,7 +25,10 @@ final class Dependencies {
     required this.subjectsRepository,
     required this.probaInfoRepository,
     required this.treeInformationRepository,
+    required this.deadwoodRepository,
     required this.taxationCharacteristicRepository,
+    required this.undergrowthRepository,
+    required this.understoryRepository,
   });
 
   final MainTabsBloc mainTabsBloc;
@@ -35,5 +41,8 @@ final class Dependencies {
   final SubjectsRepository subjectsRepository;
   final ProbaInfoRepository probaInfoRepository;
   final TreeInformationRepository treeInformationRepository;
+  final DeadwoodRepository deadwoodRepository;
   final TaxationCharacteristicRepository taxationCharacteristicRepository;
+  final UndergrowthRepository undergrowthRepository;
+  final UnderstoryRepository understoryRepository;
 }

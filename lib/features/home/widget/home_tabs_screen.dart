@@ -6,6 +6,7 @@ import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/widget/permanent_pp_screen.dart';
 import 'package:taxation_card/features/soils/widget/soils_screen.dart';
 import 'package:taxation_card/features/undergrowth/widget/undergrowth_screen.dart';
+import 'package:taxation_card/features/understory/widget/understory_screen.dart';
 
 final class HomeTabsScreen extends StatefulWidget {
   const HomeTabsScreen({super.key});
@@ -67,6 +68,7 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
             EyesTaxationScreen(),
             PermanentPpScreen(),
             UndergrowthScreen(),
+            UnderstoryScreen(),
             DeadwoodScreen(),
             SoilsScreen(),
           ],

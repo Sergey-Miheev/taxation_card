@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:taxation_card/core/constants/constants.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
@@ -14,101 +15,6 @@ final class PermanentPpScreen extends StatefulWidget {
 final class _PermanentPpScreenState extends State<PermanentPpScreen>
     with AutomaticKeepAliveClientMixin {
   static const _woodQualityOptions = ['Деловая', 'Полуделовая', 'Дровянная'];
-  static const _allSpecies = [
-    'Акация белая',
-    'Акация жёлтая',
-    'Барбарис',
-    'Бархат амурский',
-    'Бересклет',
-    'Берёза',
-    'Берёза каменная',
-    'Берёза кустарн.ерник',
-    'Берёза приземистая',
-    'Бобовник',
-    'Боярышник',
-    'Бук',
-    'Бузина',
-    'Вишня',
-    'Волчье лыко',
-    'Вяз',
-    'Вяз культуры',
-    'Граб',
-    'Груша',
-    'Дрок',
-    'Дуб',
-    'Дуб низкоств.',
-    'Дуб черешчатый',
-    'Ежевика сизая',
-    'Ель',
-    'Ель европейская',
-    'Ель сибирская',
-    'Жимолость',
-    'Ива белая-ветла',
-    'Ива древовидная',
-    'Ива кустарниковая',
-    'Ива ломкая-ракита',
-    'Ива пепельная',
-    'Ива черничная',
-    'Ильм горный',
-    'Ильм долинный',
-    'Ирга',
-    'Калина',
-    'Кедр',
-    'Кедр высокогор.',
-    'Кедр разновзр.',
-    'Кедр сибирский',
-    'Кедровый стланик',
-    'Кизильник',
-    'Клён',
-    'Клён культуры',
-    'Клён остролистный',
-    'Клён полевой',
-    'Клён татарский',
-    'Клён ясенелистный',
-    'Крушина ломкая',
-    'Крушина слабительн.',
-    'Куманика',
-    'Лещина обыкновенная',
-    'Липа',
-    'Липа нектарная',
-    'Лиственница',
-    'Лиственница сибирск.',
-    'Лох',
-    'Малина',
-    'Можжевельник',
-    'Облепиха',
-    'Ольха серая',
-    'Ольха чёрная',
-    'Осина',
-    'Пихта',
-    'Пихта сибирская',
-    'Ракитник',
-    'Рододендрон',
-    'Рябина',
-    'Свидина',
-    'Сирень',
-    'Слива-алыча',
-    'Смородина',
-    'Сосна',
-    'Сосна банкса',
-    'Спирея',
-    'Тальник',
-    'Терн-слива колючая',
-    'Тополь',
-    'Тополь белый',
-    'Тополь культуры',
-    'Тополь пирамидальный',
-    'Тополь чёрный',
-    'Чилига',
-    'Черёмуха',
-    'Черёмуха пенсильван.',
-    'Шиповник',
-    'Яблоня',
-    'Яблоня дикая',
-    'Ясень',
-    'Ясень зеленый',
-    'Ясень обыкновенный',
-  ];
 
   final _formKey = GlobalKey<FormState>();
   final _treeAgeController = TextEditingController();
@@ -563,31 +469,6 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     return parts.join(' • ');
   }
 
-  DropdownButtonFormField<String> _buildDropdownField({
-    required String labelText,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: _inputDecoration(labelText: labelText),
-      items: items
-          .map(
-            (item) => DropdownMenuItem<String>(value: item, child: Text(item)),
-          )
-          .toList(),
-      onChanged: onChanged,
-      validator: (selectedValue) {
-        if (selectedValue == null || selectedValue.isEmpty) {
-          return 'Выберите значение';
-        }
-
-        return null;
-      },
-    );
-  }
-
   TextFormField _buildNumberField({
     required TextEditingController controller,
     required String labelText,
@@ -715,9 +596,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                 width: double.maxFinite,
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: _allSpecies.length,
+                  itemCount: allSpecies.length,
                   itemBuilder: (context, index) {
-                    final species = _allSpecies[index];
+                    final species = allSpecies[index];
                     return RadioListTile<String>(
                       title: Text(species),
                       value: species,
@@ -756,53 +637,5 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
         _selectedDynamicElement = result;
       });
     }
-  }
-}
-
-final class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 140, maxWidth: 280),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
-          ),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
