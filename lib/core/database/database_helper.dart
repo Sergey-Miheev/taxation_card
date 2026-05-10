@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 8,
+      version: 9,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -58,6 +58,7 @@ CREATE TABLE subject_districts (
     await _createUndergrowthTable(db);
     await _createUnderstoryTable(db);
     await _createDeadwoodTable(db);
+    await _createStumpsTable(db);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -81,6 +82,9 @@ CREATE TABLE subject_districts (
     }
     if (oldVersion == 7) {
       await _migrateDeadwoodToSingleDiameter(db);
+    }
+    if (oldVersion < 9) {
+      await _createStumpsTable(db);
     }
   }
 
@@ -217,6 +221,25 @@ CREATE TABLE IF NOT EXISTS deadwood (
   length REAL NOT NULL,
   diameter INTEGER NOT NULL,
   millimeter INTEGER,
+  rot_size REAL,
+  rot_length REAL,
+  decay_stage TEXT NOT NULL,
+  FOREIGN KEY (proba_info_id) REFERENCES proba_info (id) ON DELETE CASCADE
+)
+''');
+  }
+
+  Future<void> _createStumpsTable(Database db) async {
+    await db.execute('''
+CREATE TABLE IF NOT EXISTS stumps (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proba_info_id INTEGER NOT NULL,
+  species TEXT NOT NULL,
+  stump_height REAL NOT NULL,
+  stump_height_diameter INTEGER NOT NULL,
+  stump_height_millimeter INTEGER,
+  root_collar_diameter INTEGER NOT NULL,
+  root_collar_millimeter INTEGER,
   rot_size REAL,
   rot_length REAL,
   decay_stage TEXT NOT NULL,

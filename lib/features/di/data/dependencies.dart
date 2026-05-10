@@ -7,6 +7,8 @@ import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.d
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
+import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
@@ -20,12 +22,14 @@ final class Dependencies {
     required this.permanentPpBloc,
     required this.undergrowthBloc,
     required this.deadwoodBloc,
+    required this.stumpsBloc,
     required this.soilsBloc,
     required this.taxationCharacteristicBloc,
     required this.subjectsRepository,
     required this.probaInfoRepository,
     required this.treeInformationRepository,
     required this.deadwoodRepository,
+    required this.stumpsRepository,
     required this.taxationCharacteristicRepository,
     required this.undergrowthRepository,
     required this.understoryRepository,
@@ -36,12 +40,14 @@ final class Dependencies {
   final PermanentPpBloc permanentPpBloc;
   final UndergrowthBloc undergrowthBloc;
   final DeadwoodBloc deadwoodBloc;
+  final StumpsBloc stumpsBloc;
   final SoilsBloc soilsBloc;
   final TaxationCharacteristicBloc taxationCharacteristicBloc;
   final SubjectsRepository subjectsRepository;
   final ProbaInfoRepository probaInfoRepository;
   final TreeInformationRepository treeInformationRepository;
   final DeadwoodRepository deadwoodRepository;
+  final StumpsRepository stumpsRepository;
   final TaxationCharacteristicRepository taxationCharacteristicRepository;
   final UndergrowthRepository undergrowthRepository;
   final UnderstoryRepository understoryRepository;

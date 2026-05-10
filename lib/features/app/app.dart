@@ -8,6 +8,7 @@ import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dar
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
 
@@ -39,6 +40,7 @@ final class App extends StatelessWidget {
             value: _dependencies.undergrowthBloc,
           ),
           BlocProvider<DeadwoodBloc>.value(value: _dependencies.deadwoodBloc),
+          BlocProvider<StumpsBloc>.value(value: _dependencies.stumpsBloc),
           BlocProvider<SoilsBloc>.value(value: _dependencies.soilsBloc),
           BlocProvider<TaxationCharacteristicBloc>.value(
             value: _dependencies.taxationCharacteristicBloc,

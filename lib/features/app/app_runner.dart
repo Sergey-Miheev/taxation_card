@@ -15,6 +15,8 @@ import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.d
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
+import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 import 'package:taxation_card/features/undergrowth/bloc/undergrowth_bloc.dart';
@@ -43,6 +45,7 @@ final class AppRunner {
     final undergrowthRepository = UndergrowthRepository(database: database);
     final understoryRepository = UnderstoryRepository(database: database);
     final deadwoodRepository = DeadwoodRepository(database: database);
+    final stumpsRepository = StumpsRepository(database: database);
     final taxationCharacteristicBloc = TaxationCharacteristicBloc(
       repository: taxationCharacteristicRepository,
     )..add(const TaxationCharacteristicEvent.loaded());
@@ -53,12 +56,14 @@ final class AppRunner {
       permanentPpBloc: PermanentPpBloc(repository: treeInformationRepository),
       undergrowthBloc: UndergrowthBloc(),
       deadwoodBloc: DeadwoodBloc(repository: deadwoodRepository),
+      stumpsBloc: StumpsBloc(repository: stumpsRepository),
       soilsBloc: SoilsBloc(),
       taxationCharacteristicBloc: taxationCharacteristicBloc,
       subjectsRepository: subjectsRepository,
       probaInfoRepository: probaInfoRepository,
       treeInformationRepository: treeInformationRepository,
       deadwoodRepository: deadwoodRepository,
+      stumpsRepository: stumpsRepository,
       taxationCharacteristicRepository: taxationCharacteristicRepository,
       undergrowthRepository: undergrowthRepository,
       understoryRepository: understoryRepository,
