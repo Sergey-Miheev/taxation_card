@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
-import 'package:taxation_card/features/taxation_characteristic/domain/taxation_csv_exporter.dart';
 import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
 final class EyesTaxationScreen extends StatefulWidget {
@@ -57,7 +55,6 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
                   const SizedBox(height: 16),
                   _buildAddButton(selectedProbaInfoId),
                   const SizedBox(height: 12),
-                  _buildExportCsvButton(selectedProbaInfoId),
                 ],
               ),
             ),
@@ -130,40 +127,6 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
         ),
         child: const Text('Добавить'),
       ),
-    );
-  }
-
-  Widget _buildExportCsvButton(int? selectedProbaInfoId) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        onPressed: selectedProbaInfoId == null
-            ? null
-            : () => _exportTaxationCsv(selectedProbaInfoId),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: const Text('Выгрузить в csv'),
-      ),
-    );
-  }
-
-  Future<void> _exportTaxationCsv(int probaInfoId) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final dependencies = DependenciesScope.of(context);
-    final csvContent = await dependencies.taxationCharacteristicRepository
-        .buildCsv(probaInfoId);
-    final fileName = await const TaxationCsvExporter().export(csvContent);
-
-    if (fileName == null) {
-      return;
-    }
-
-    scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text('Файл $fileName выгружен')),
     );
   }
 }
