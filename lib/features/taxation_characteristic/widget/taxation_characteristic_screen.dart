@@ -23,7 +23,7 @@ final class _TaxationCharacteristicScreenState
     'Травяной',
     'Сфагновый',
   ];
-  static const _siteClasses = ['Ia', 'I', 'II', 'III', 'IV', 'V'];
+  static const _siteClasses = ['1Б', '1А', '1', '2', '3', '4', '5', '5А', '5Б'];
   static const _tluValues = [
     'A0',
     'A1',
@@ -66,9 +66,10 @@ final class _TaxationCharacteristicScreenState
   final _averageHeightController = TextEditingController();
   final _diameterController = TextEditingController();
   final _densityController = TextEditingController();
-  final _stockController = TextEditingController();
   final _plantationsTotalController = TextEditingController();
   final _coniferousTotalController = TextEditingController();
+  final _dryStandingController = TextEditingController();
+  final _nonLiquidWoodController = TextEditingController();
   final _canopyClosureController = TextEditingController();
   final _sparsenessController = TextEditingController();
   final _commercialWoodOutputController = TextEditingController();
@@ -97,9 +98,10 @@ final class _TaxationCharacteristicScreenState
     _averageHeightController.addListener(_onAverageHeightChanged);
     _diameterController.addListener(_onDiameterChanged);
     _densityController.addListener(_onDensityChanged);
-    _stockController.addListener(_onStockChanged);
     _plantationsTotalController.addListener(_onPlantationsTotalChanged);
     _coniferousTotalController.addListener(_onConiferousTotalChanged);
+    _dryStandingController.addListener(_onDryStandingChanged);
+    _nonLiquidWoodController.addListener(_onNonLiquidWoodChanged);
     _canopyClosureController.addListener(_onCanopyClosureChanged);
     _sparsenessController.addListener(_onSparsenessChanged);
     _commercialWoodOutputController.addListener(_onCommercialWoodOutputChanged);
@@ -128,14 +130,17 @@ final class _TaxationCharacteristicScreenState
     _densityController
       ..removeListener(_onDensityChanged)
       ..dispose();
-    _stockController
-      ..removeListener(_onStockChanged)
-      ..dispose();
     _plantationsTotalController
       ..removeListener(_onPlantationsTotalChanged)
       ..dispose();
     _coniferousTotalController
       ..removeListener(_onConiferousTotalChanged)
+      ..dispose();
+    _dryStandingController
+      ..removeListener(_onDryStandingChanged)
+      ..dispose();
+    _nonLiquidWoodController
+      ..removeListener(_onNonLiquidWoodChanged)
       ..dispose();
     _canopyClosureController
       ..removeListener(_onCanopyClosureChanged)
@@ -355,24 +360,40 @@ final class _TaxationCharacteristicScreenState
                 ),
                 const SizedBox(height: 16),
                 _FormSection(
-                  title: 'Запасы и структура',
+                  title: 'Запас',
                   children: [
+                    _InnerFormSection(
+                      title: 'Лесные насаждения',
+                      children: [
+                        _buildNumberField(
+                          controller: _plantationsTotalController,
+                          labelText: 'Всего',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildNumberField(
+                          controller: _coniferousTotalController,
+                          labelText: 'В том числе усыхающих',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     _buildNumberField(
-                      controller: _stockController,
-                      labelText: 'Запас, м³',
+                      controller: _dryStandingController,
+                      labelText: 'Сухостой',
                       allowDecimal: true,
                     ),
                     const SizedBox(height: 12),
                     _buildNumberField(
-                      controller: _plantationsTotalController,
-                      labelText: 'Лесные насаждения: Всего',
+                      controller: _nonLiquidWoodController,
+                      labelText: 'Неликвидная древесина',
+                      allowDecimal: true,
                     ),
-                    const SizedBox(height: 12),
-                    _buildNumberField(
-                      controller: _coniferousTotalController,
-                      labelText: 'В том числе хвойных',
-                    ),
-                    const SizedBox(height: 12),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _FormSection(
+                  title: 'Выход деловой древесины',
+                  children: [
                     _buildNumberField(
                       controller: _commercialWoodOutputController,
                       labelText: '% выхода деловой древесины',
@@ -503,9 +524,10 @@ final class _TaxationCharacteristicScreenState
     _setControllerText(_averageHeightController, state.averageHeight);
     _setControllerText(_diameterController, state.diameter);
     _setControllerText(_densityController, state.density);
-    _setControllerText(_stockController, state.stock);
     _setControllerText(_plantationsTotalController, state.plantationsTotal);
     _setControllerText(_coniferousTotalController, state.coniferousTotal);
+    _setControllerText(_dryStandingController, state.dryStanding);
+    _setControllerText(_nonLiquidWoodController, state.nonLiquidWood);
     _setControllerText(_canopyClosureController, state.canopyClosure);
     _setControllerText(_sparsenessController, state.sparseness);
     _setControllerText(
@@ -525,9 +547,10 @@ final class _TaxationCharacteristicScreenState
     _setControllerText(_averageHeightController, record.averageHeight);
     _setControllerText(_diameterController, record.diameter);
     _setControllerText(_densityController, record.density);
-    _setControllerText(_stockController, record.stock);
     _setControllerText(_plantationsTotalController, record.plantationsTotal);
     _setControllerText(_coniferousTotalController, record.coniferousTotal);
+    _setControllerText(_dryStandingController, record.dryStanding);
+    _setControllerText(_nonLiquidWoodController, record.nonLiquidWood);
     _setControllerText(_canopyClosureController, record.canopyClosure);
     _setControllerText(_sparsenessController, record.sparseness);
     _setControllerText(
@@ -559,12 +582,13 @@ final class _TaxationCharacteristicScreenState
         previous.averageHeight != current.averageHeight ||
         previous.diameter != current.diameter ||
         previous.density != current.density ||
-        previous.stock != current.stock ||
         previous.forestType != current.forestType ||
         previous.siteClass != current.siteClass ||
         previous.tlu != current.tlu ||
         previous.plantationsTotal != current.plantationsTotal ||
         previous.coniferousTotal != current.coniferousTotal ||
+        previous.dryStanding != current.dryStanding ||
+        previous.nonLiquidWood != current.nonLiquidWood ||
         previous.canopyClosure != current.canopyClosure ||
         previous.sparseness != current.sparseness ||
         previous.commercialWoodOutput != current.commercialWoodOutput ||
@@ -584,12 +608,13 @@ final class _TaxationCharacteristicScreenState
         initialRecord.averageHeight != state.averageHeight ||
         initialRecord.diameter != state.diameter ||
         initialRecord.density != state.density ||
-        initialRecord.stock != state.stock ||
         initialRecord.forestType != state.forestType ||
         initialRecord.siteClass != state.siteClass ||
         initialRecord.tlu != state.tlu ||
         initialRecord.plantationsTotal != state.plantationsTotal ||
         initialRecord.coniferousTotal != state.coniferousTotal ||
+        initialRecord.dryStanding != state.dryStanding ||
+        initialRecord.nonLiquidWood != state.nonLiquidWood ||
         initialRecord.canopyClosure != state.canopyClosure ||
         initialRecord.sparseness != state.sparseness ||
         initialRecord.commercialWoodOutput != state.commercialWoodOutput ||
@@ -602,6 +627,8 @@ final class _TaxationCharacteristicScreenState
   }) {
     return TaxationCharacteristicRecord(
       id: id,
+      probaInfoId:
+          state.selectedProbaInfoId ?? widget.initialRecord!.probaInfoId,
       tier: state.tier,
       dominantSpecies: state.dominantSpecies,
       compositionCoefficient: state.compositionCoefficient,
@@ -609,12 +636,13 @@ final class _TaxationCharacteristicScreenState
       averageHeight: state.averageHeight,
       diameter: state.diameter,
       density: state.density,
-      stock: state.stock,
       forestType: state.forestType,
       siteClass: state.siteClass,
       tlu: state.tlu,
       plantationsTotal: state.plantationsTotal,
       coniferousTotal: state.coniferousTotal,
+      dryStanding: state.dryStanding,
+      nonLiquidWood: state.nonLiquidWood,
       canopyClosure: state.canopyClosure,
       sparseness: state.sparseness,
       commercialWoodOutput: state.commercialWoodOutput,
@@ -675,10 +703,6 @@ final class _TaxationCharacteristicScreenState
     );
   }
 
-  void _onStockChanged() {
-    _onTextChanged(TaxationCharacteristicField.stock, _stockController.text);
-  }
-
   void _onPlantationsTotalChanged() {
     _onTextChanged(
       TaxationCharacteristicField.plantationsTotal,
@@ -690,6 +714,20 @@ final class _TaxationCharacteristicScreenState
     _onTextChanged(
       TaxationCharacteristicField.coniferousTotal,
       _coniferousTotalController.text,
+    );
+  }
+
+  void _onDryStandingChanged() {
+    _onTextChanged(
+      TaxationCharacteristicField.dryStanding,
+      _dryStandingController.text,
+    );
+  }
+
+  void _onNonLiquidWoodChanged() {
+    _onTextChanged(
+      TaxationCharacteristicField.nonLiquidWood,
+      _nonLiquidWoodController.text,
     );
   }
 
@@ -755,6 +793,36 @@ final class _FormSection extends StatelessWidget {
           children: [
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _InnerFormSection extends StatelessWidget {
+  const _InnerFormSection({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 12),
             ...children,
           ],
         ),

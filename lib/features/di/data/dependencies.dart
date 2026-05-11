@@ -2,11 +2,13 @@ import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
+import 'package:taxation_card/features/home/domain/home_csv_exporter.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/soils/domain/soils_repository.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -30,9 +32,11 @@ final class Dependencies {
     required this.treeInformationRepository,
     required this.deadwoodRepository,
     required this.stumpsRepository,
+    required this.soilsRepository,
     required this.taxationCharacteristicRepository,
     required this.undergrowthRepository,
     required this.understoryRepository,
+    required this.homeCsvExporter,
   });
 
   final MainTabsBloc mainTabsBloc;
@@ -48,7 +52,9 @@ final class Dependencies {
   final TreeInformationRepository treeInformationRepository;
   final DeadwoodRepository deadwoodRepository;
   final StumpsRepository stumpsRepository;
+  final SoilsRepository soilsRepository;
   final TaxationCharacteristicRepository taxationCharacteristicRepository;
   final UndergrowthRepository undergrowthRepository;
   final UnderstoryRepository understoryRepository;
+  final HomeCsvExporter homeCsvExporter;
 }

@@ -153,7 +153,7 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
     });
   }
 
-  void _openEyesTaxation(ProbaInfoRecord record) {
+  Future<void> _openEyesTaxation(ProbaInfoRecord record) async {
     final id = record.id;
     if (id == null) {
       return;
@@ -162,7 +162,7 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
     context.read<MainTabsBloc>()
       ..add(MainTabsEvent.probaInfoSelected(id))
       ..add(const MainTabsEvent.tabSelected(MainTab.eyesTaxation));
-    context.go(AppRoutes.home.path);
+    await context.pushNamed(AppRoutes.home.name);
   }
 }
 

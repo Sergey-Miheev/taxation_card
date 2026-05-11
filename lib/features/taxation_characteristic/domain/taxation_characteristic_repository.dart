@@ -7,8 +7,15 @@ final class TaxationCharacteristicRepository {
 
   final Database _database;
 
-  Future<List<TaxationCharacteristicRecord>> getAll() async {
-    final rows = await _database.query('eyes_taxation', orderBy: 'id ASC');
+  Future<List<TaxationCharacteristicRecord>> getByProbaInfoId(
+    int probaInfoId,
+  ) async {
+    final rows = await _database.query(
+      'eyes_taxation',
+      where: 'proba_info_id = ?',
+      whereArgs: [probaInfoId],
+      orderBy: 'id ASC',
+    );
 
     return rows.map(_recordFromRow).toList();
   }
@@ -26,12 +33,13 @@ final class TaxationCharacteristicRepository {
     );
   }
 
-  Future<String> buildCsv() async {
-    final records = await getAll();
+  Future<String> buildCsv(int probaInfoId) async {
+    final records = await getByProbaInfoId(probaInfoId);
     final buffer = StringBuffer('\uFEFF')
       ..writeln(
         [
           'id',
+          'proba_info_id',
           'Ярус',
           'Преобладающая порода',
           'Коэффициент состава',
@@ -39,12 +47,13 @@ final class TaxationCharacteristicRepository {
           'Средняя высота, м',
           'Диаметр, см',
           'Полнота',
-          'Запас, м³',
           'Тип леса',
           'Класс бонитета',
           'ТЛУ',
           'Лесные насаждения: Всего',
-          'В том числе хвойных',
+          'В том числе усыхающих',
+          'Сухостой',
+          'Неликвидная древесина',
           'Сомкнутость',
           'Изреженность',
           '% выхода деловой древесины',
@@ -56,6 +65,7 @@ final class TaxationCharacteristicRepository {
       buffer.writeln(
         [
           record.id?.toString() ?? '',
+          record.probaInfoId.toString(),
           record.tier ?? '',
           record.dominantSpecies,
           record.compositionCoefficient,
@@ -63,12 +73,13 @@ final class TaxationCharacteristicRepository {
           record.averageHeight,
           record.diameter,
           record.density,
-          record.stock,
           record.forestType ?? '',
           record.siteClass ?? '',
           record.tlu ?? '',
           record.plantationsTotal,
           record.coniferousTotal,
+          record.dryStanding,
+          record.nonLiquidWood,
           record.canopyClosure,
           record.sparseness,
           record.commercialWoodOutput,
@@ -91,6 +102,7 @@ final class TaxationCharacteristicRepository {
   TaxationCharacteristicRecord _recordFromRow(Map<String, Object?> row) {
     return TaxationCharacteristicRecord(
       id: row['id'] as int?,
+      probaInfoId: (row['proba_info_id'] as int?)!,
       tier: row['tier'].toString(),
       dominantSpecies: row['dominant_species'].toString(),
       compositionCoefficient: _stringifyNumber(row['composition_coefficient']),
@@ -98,12 +110,13 @@ final class TaxationCharacteristicRepository {
       averageHeight: _stringifyNumber(row['average_height']),
       diameter: _stringifyNumber(row['diameter']),
       density: _stringifyNumber(row['density']),
-      stock: _stringifyNumber(row['stock']),
       forestType: row['forest_type'].toString(),
       siteClass: row['site_class'].toString(),
       tlu: row['tlu'].toString(),
       plantationsTotal: row['plantations_total'].toString(),
       coniferousTotal: row['coniferous_total'].toString(),
+      dryStanding: _stringifyNumber(row['dry_standing']),
+      nonLiquidWood: _stringifyNumber(row['non_liquid_wood']),
       canopyClosure: _stringifyNumber(row['canopy_closure']),
       sparseness: _stringifyNumber(row['sparseness']),
       commercialWoodOutput: _stringifyNumber(row['commercial_wood_output']),
@@ -125,6 +138,7 @@ final class TaxationCharacteristicRepository {
 
   Map<String, Object?> _toRow(TaxationCharacteristicRecord record) {
     return {
+      'proba_info_id': record.probaInfoId,
       'tier': _parseInt(record.tier!),
       'dominant_species': record.dominantSpecies,
       'composition_coefficient': _parseDouble(record.compositionCoefficient),
@@ -132,12 +146,13 @@ final class TaxationCharacteristicRepository {
       'average_height': _parseDouble(record.averageHeight),
       'diameter': _parseDouble(record.diameter),
       'density': _parseDouble(record.density),
-      'stock': _parseDouble(record.stock),
       'forest_type': record.forestType,
       'site_class': record.siteClass,
       'tlu': record.tlu,
       'plantations_total': _parseInt(record.plantationsTotal),
       'coniferous_total': _parseInt(record.coniferousTotal),
+      'dry_standing': _parseDouble(record.dryStanding),
+      'non_liquid_wood': _parseDouble(record.nonLiquidWood),
       'canopy_closure': _parseDouble(record.canopyClosure),
       'sparseness': _parseDouble(record.sparseness),
       'commercial_wood_output': _parseDouble(record.commercialWoodOutput),

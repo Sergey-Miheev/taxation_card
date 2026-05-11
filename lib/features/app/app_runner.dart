@@ -10,11 +10,13 @@ import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart'
 import 'package:taxation_card/features/di/data/dependencies.dart';
 import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
+import 'package:taxation_card/features/home/domain/home_csv_exporter.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
+import 'package:taxation_card/features/soils/domain/soils_repository.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -46,9 +48,11 @@ final class AppRunner {
     final understoryRepository = UnderstoryRepository(database: database);
     final deadwoodRepository = DeadwoodRepository(database: database);
     final stumpsRepository = StumpsRepository(database: database);
+    final soilsRepository = SoilsRepository(database: database);
+    final homeCsvExporter = HomeCsvExporter(database: database);
     final taxationCharacteristicBloc = TaxationCharacteristicBloc(
       repository: taxationCharacteristicRepository,
-    )..add(const TaxationCharacteristicEvent.loaded());
+    );
 
     final dependencies = Dependencies(
       mainTabsBloc: MainTabsBloc(),
@@ -64,9 +68,11 @@ final class AppRunner {
       treeInformationRepository: treeInformationRepository,
       deadwoodRepository: deadwoodRepository,
       stumpsRepository: stumpsRepository,
+      soilsRepository: soilsRepository,
       taxationCharacteristicRepository: taxationCharacteristicRepository,
       undergrowthRepository: undergrowthRepository,
       understoryRepository: understoryRepository,
+      homeCsvExporter: homeCsvExporter,
     );
 
     runApp(App(routerConfig: AppRouter().config, dependencies: dependencies));

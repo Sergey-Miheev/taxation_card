@@ -178,7 +178,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Сетка участков (выберите 2)',
+                  'Выберите диаметр',
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),

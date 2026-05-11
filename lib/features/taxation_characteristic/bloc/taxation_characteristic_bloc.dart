@@ -9,12 +9,13 @@ enum TaxationCharacteristicField {
   averageHeight,
   diameter,
   density,
-  stock,
   forestType,
   siteClass,
   tlu,
   plantationsTotal,
   coniferousTotal,
+  dryStanding,
+  nonLiquidWood,
   canopyClosure,
   sparseness,
   commercialWoodOutput,
@@ -24,7 +25,7 @@ enum TaxationCharacteristicField {
 sealed class TaxationCharacteristicEvent {
   const TaxationCharacteristicEvent();
 
-  const factory TaxationCharacteristicEvent.loaded() =
+  const factory TaxationCharacteristicEvent.loaded(int probaInfoId) =
       TaxationCharacteristicLoaded;
 
   const factory TaxationCharacteristicEvent.recordSelected(
@@ -47,7 +48,9 @@ sealed class TaxationCharacteristicEvent {
 }
 
 final class TaxationCharacteristicLoaded extends TaxationCharacteristicEvent {
-  const TaxationCharacteristicLoaded();
+  const TaxationCharacteristicLoaded(this.probaInfoId);
+
+  final int probaInfoId;
 }
 
 final class TaxationCharacteristicRecordSelected
@@ -93,20 +96,23 @@ final class TaxationCharacteristicRecord {
     required this.averageHeight,
     required this.diameter,
     required this.density,
-    required this.stock,
     required this.forestType,
     required this.siteClass,
     required this.tlu,
     required this.plantationsTotal,
     required this.coniferousTotal,
+    required this.dryStanding,
+    required this.nonLiquidWood,
     required this.canopyClosure,
     required this.sparseness,
     required this.commercialWoodOutput,
     required this.merchantabilityClass,
+    required this.probaInfoId,
     this.id,
   });
 
   final int? id;
+  final int probaInfoId;
   final String? tier;
   final String dominantSpecies;
   final String compositionCoefficient;
@@ -114,12 +120,13 @@ final class TaxationCharacteristicRecord {
   final String averageHeight;
   final String diameter;
   final String density;
-  final String stock;
   final String? forestType;
   final String? siteClass;
   final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
+  final String dryStanding;
+  final String nonLiquidWood;
   final String canopyClosure;
   final String sparseness;
   final String commercialWoodOutput;
@@ -129,6 +136,7 @@ final class TaxationCharacteristicRecord {
 final class TaxationCharacteristicState {
   const TaxationCharacteristicState({
     this.records = const [],
+    this.selectedProbaInfoId,
     this.tier,
     this.dominantSpecies = '',
     this.compositionCoefficient = '',
@@ -136,12 +144,13 @@ final class TaxationCharacteristicState {
     this.averageHeight = '',
     this.diameter = '',
     this.density = '',
-    this.stock = '',
     this.forestType,
     this.siteClass,
     this.tlu,
     this.plantationsTotal = '',
     this.coniferousTotal = '',
+    this.dryStanding = '',
+    this.nonLiquidWood = '',
     this.canopyClosure = '',
     this.sparseness = '',
     this.commercialWoodOutput = '',
@@ -151,6 +160,7 @@ final class TaxationCharacteristicState {
   });
 
   final List<TaxationCharacteristicRecord> records;
+  final int? selectedProbaInfoId;
   final String? tier;
   final String dominantSpecies;
   final String compositionCoefficient;
@@ -158,12 +168,13 @@ final class TaxationCharacteristicState {
   final String averageHeight;
   final String diameter;
   final String density;
-  final String stock;
   final String? forestType;
   final String? siteClass;
   final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
+  final String dryStanding;
+  final String nonLiquidWood;
   final String canopyClosure;
   final String sparseness;
   final String commercialWoodOutput;
@@ -173,6 +184,7 @@ final class TaxationCharacteristicState {
 
   TaxationCharacteristicState copyWith({
     List<TaxationCharacteristicRecord>? records,
+    int? selectedProbaInfoId,
     String? tier,
     String? dominantSpecies,
     String? compositionCoefficient,
@@ -180,12 +192,13 @@ final class TaxationCharacteristicState {
     String? averageHeight,
     String? diameter,
     String? density,
-    String? stock,
     String? forestType,
     String? siteClass,
     String? tlu,
     String? plantationsTotal,
     String? coniferousTotal,
+    String? dryStanding,
+    String? nonLiquidWood,
     String? canopyClosure,
     String? sparseness,
     String? commercialWoodOutput,
@@ -195,6 +208,7 @@ final class TaxationCharacteristicState {
   }) {
     return TaxationCharacteristicState(
       records: records ?? this.records,
+      selectedProbaInfoId: selectedProbaInfoId ?? this.selectedProbaInfoId,
       tier: tier ?? this.tier,
       dominantSpecies: dominantSpecies ?? this.dominantSpecies,
       compositionCoefficient:
@@ -203,12 +217,13 @@ final class TaxationCharacteristicState {
       averageHeight: averageHeight ?? this.averageHeight,
       diameter: diameter ?? this.diameter,
       density: density ?? this.density,
-      stock: stock ?? this.stock,
       forestType: forestType ?? this.forestType,
       siteClass: siteClass ?? this.siteClass,
       tlu: tlu ?? this.tlu,
       plantationsTotal: plantationsTotal ?? this.plantationsTotal,
       coniferousTotal: coniferousTotal ?? this.coniferousTotal,
+      dryStanding: dryStanding ?? this.dryStanding,
+      nonLiquidWood: nonLiquidWood ?? this.nonLiquidWood,
       canopyClosure: canopyClosure ?? this.canopyClosure,
       sparseness: sparseness ?? this.sparseness,
       commercialWoodOutput: commercialWoodOutput ?? this.commercialWoodOutput,
@@ -242,10 +257,11 @@ final class TaxationCharacteristicBloc
     emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
 
     try {
-      final records = await _repository.getAll();
+      final records = await _repository.getByProbaInfoId(event.probaInfoId);
       emit(
         state.copyWith(
           records: records,
+          selectedProbaInfoId: event.probaInfoId,
           status: TaxationCharacteristicStatus.idle,
         ),
       );
@@ -267,6 +283,7 @@ final class TaxationCharacteristicBloc
 
     emit(
       state.copyWith(
+        selectedProbaInfoId: record.probaInfoId,
         tier: record.tier,
         dominantSpecies: record.dominantSpecies,
         compositionCoefficient: record.compositionCoefficient,
@@ -274,12 +291,13 @@ final class TaxationCharacteristicBloc
         averageHeight: record.averageHeight,
         diameter: record.diameter,
         density: record.density,
-        stock: record.stock,
         forestType: record.forestType,
         siteClass: record.siteClass,
         tlu: record.tlu,
         plantationsTotal: record.plantationsTotal,
         coniferousTotal: record.coniferousTotal,
+        dryStanding: record.dryStanding,
+        nonLiquidWood: record.nonLiquidWood,
         canopyClosure: record.canopyClosure,
         sparseness: record.sparseness,
         commercialWoodOutput: record.commercialWoodOutput,
@@ -342,13 +360,6 @@ final class TaxationCharacteristicBloc
             status: TaxationCharacteristicStatus.idle,
           ),
         );
-      case TaxationCharacteristicField.stock:
-        emit(
-          state.copyWith(
-            stock: value,
-            status: TaxationCharacteristicStatus.idle,
-          ),
-        );
       case TaxationCharacteristicField.forestType:
         emit(
           state.copyWith(
@@ -378,6 +389,20 @@ final class TaxationCharacteristicBloc
         emit(
           state.copyWith(
             coniferousTotal: value,
+            status: TaxationCharacteristicStatus.idle,
+          ),
+        );
+      case TaxationCharacteristicField.dryStanding:
+        emit(
+          state.copyWith(
+            dryStanding: value,
+            status: TaxationCharacteristicStatus.idle,
+          ),
+        );
+      case TaxationCharacteristicField.nonLiquidWood:
+        emit(
+          state.copyWith(
+            nonLiquidWood: value,
             status: TaxationCharacteristicStatus.idle,
           ),
         );
@@ -416,13 +441,24 @@ final class TaxationCharacteristicBloc
     TaxationCharacteristicAdded event,
     Emitter<TaxationCharacteristicState> emit,
   ) async {
-    final record = _createRecord();
+    final probaInfoId = state.selectedProbaInfoId;
+    if (probaInfoId == null) {
+      emit(
+        state.copyWith(
+          status: TaxationCharacteristicStatus.failure,
+          message: 'Сначала выберите пробную площадь',
+        ),
+      );
+      return;
+    }
+
+    final record = _createRecord(probaInfoId: probaInfoId);
 
     emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
 
     try {
       final id = await _repository.insert(record);
-      final savedRecord = _createRecord(id: id);
+      final savedRecord = _createRecord(id: id, probaInfoId: probaInfoId);
       emit(
         state.copyWith(
           records: [...state.records, savedRecord],
@@ -443,7 +479,18 @@ final class TaxationCharacteristicBloc
     TaxationCharacteristicUpdated event,
     Emitter<TaxationCharacteristicState> emit,
   ) async {
-    final record = _createRecord(id: event.id);
+    final probaInfoId = state.selectedProbaInfoId;
+    if (probaInfoId == null) {
+      emit(
+        state.copyWith(
+          status: TaxationCharacteristicStatus.failure,
+          message: 'Сначала выберите пробную площадь',
+        ),
+      );
+      return;
+    }
+
+    final record = _createRecord(id: event.id, probaInfoId: probaInfoId);
 
     emit(state.copyWith(status: TaxationCharacteristicStatus.loading));
 
@@ -477,9 +524,13 @@ final class TaxationCharacteristicBloc
     emit(state.copyWith(status: TaxationCharacteristicStatus.success));
   }
 
-  TaxationCharacteristicRecord _createRecord({int? id}) {
+  TaxationCharacteristicRecord _createRecord({
+    required int probaInfoId,
+    int? id,
+  }) {
     return TaxationCharacteristicRecord(
       id: id,
+      probaInfoId: probaInfoId,
       tier: state.tier,
       dominantSpecies: state.dominantSpecies,
       compositionCoefficient: state.compositionCoefficient,
@@ -487,12 +538,13 @@ final class TaxationCharacteristicBloc
       averageHeight: state.averageHeight,
       diameter: state.diameter,
       density: state.density,
-      stock: state.stock,
       forestType: state.forestType,
       siteClass: state.siteClass,
       tlu: state.tlu,
       plantationsTotal: state.plantationsTotal,
       coniferousTotal: state.coniferousTotal,
+      dryStanding: state.dryStanding,
+      nonLiquidWood: state.nonLiquidWood,
       canopyClosure: state.canopyClosure,
       sparseness: state.sparseness,
       commercialWoodOutput: state.commercialWoodOutput,

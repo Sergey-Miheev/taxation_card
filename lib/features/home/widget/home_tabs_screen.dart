@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/features/deadwood/widget/deadwood_screen.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/eyes_taxation/widget/eyes_taxation_screen.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/widget/permanent_pp_screen.dart';
@@ -19,6 +20,7 @@ final class HomeTabsScreen extends StatefulWidget {
 final class _HomeTabsScreenState extends State<HomeTabsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -42,6 +44,10 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
+      (bloc) => bloc.state.selectedProbaInfoId,
+    );
+
     return BlocListener<MainTabsBloc, MainTabsState>(
       listenWhen: (previous, current) =>
           previous.selectedTab != current.selectedTab,
@@ -53,6 +59,20 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Таксационная карточка'),
+          actions: [
+            IconButton(
+              onPressed: _isExporting || selectedProbaInfoId == null
+                  ? null
+                  : () => _showExportDialog(selectedProbaInfoId),
+              icon: _isExporting
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Icon(Icons.ios_share),
+              tooltip: 'Выгрузить CSV',
+            ),
+          ],
           bottom: TabBar(
             controller: _tabController,
             isScrollable: true,
@@ -91,5 +111,66 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
     context.read<MainTabsBloc>().add(
       MainTabsEvent.tabSelected(MainTab.values[index]),
     );
+  }
+
+  Future<void> _showExportDialog(int probaInfoId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Выгрузить данные в CSV?'),
+          content: const Text(
+            'Будут созданы отдельные CSV-файлы по таблицам для текущей пробной площади.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Нет'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Да'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    await _exportCsv(probaInfoId);
+  }
+
+  Future<void> _exportCsv(int probaInfoId) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    setState(() => _isExporting = true);
+
+    try {
+      final exportedFilesCount = await DependenciesScope.of(
+        context,
+      ).homeCsvExporter.exportProbaInfoData(probaInfoId);
+
+      if (!mounted || exportedFilesCount == null) {
+        return;
+      }
+
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Выгружено файлов: $exportedFilesCount')),
+      );
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Не удалось выгрузить CSV')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
   }
 }

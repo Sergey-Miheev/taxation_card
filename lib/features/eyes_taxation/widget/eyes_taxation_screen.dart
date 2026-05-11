@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
+import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/domain/taxation_csv_exporter.dart';
 import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
@@ -14,10 +15,16 @@ final class EyesTaxationScreen extends StatefulWidget {
 
 final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     with AutomaticKeepAliveClientMixin {
+  int? _loadedProbaInfoId;
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+    final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
+      (bloc) => bloc.state.selectedProbaInfoId,
+    );
+    _loadRecordsIfNeeded(selectedProbaInfoId);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -40,15 +47,17 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Добавьте таксационные характеристики ярусов',
+                    selectedProbaInfoId == null
+                        ? 'Выберите пробную площадь для добавления записей'
+                        : 'Добавьте таксационные характеристики ярусов',
                     style: theme.textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 16),
                   _buildTaxationRecordsList(),
                   const SizedBox(height: 16),
-                  _buildAddButton(),
+                  _buildAddButton(selectedProbaInfoId),
                   const SizedBox(height: 12),
-                  _buildExportCsvButton(),
+                  _buildExportCsvButton(selectedProbaInfoId),
                 ],
               ),
             ),
@@ -85,17 +94,34 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     );
   }
 
-  Widget _buildAddButton() {
+  void _loadRecordsIfNeeded(int? selectedProbaInfoId) {
+    if (_loadedProbaInfoId == selectedProbaInfoId) {
+      return;
+    }
+
+    _loadedProbaInfoId = selectedProbaInfoId;
+    if (selectedProbaInfoId == null) {
+      return;
+    }
+
+    context.read<TaxationCharacteristicBloc>().add(
+      TaxationCharacteristicEvent.loaded(selectedProbaInfoId),
+    );
+  }
+
+  Widget _buildAddButton(int? selectedProbaInfoId) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => const TaxationCharacteristicScreen(),
-            ),
-          );
-        },
+        onPressed: selectedProbaInfoId == null
+            ? null
+            : () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => const TaxationCharacteristicScreen(),
+                  ),
+                );
+              },
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
@@ -107,11 +133,13 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     );
   }
 
-  Widget _buildExportCsvButton() {
+  Widget _buildExportCsvButton(int? selectedProbaInfoId) {
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: _exportTaxationCsv,
+        onPressed: selectedProbaInfoId == null
+            ? null
+            : () => _exportTaxationCsv(selectedProbaInfoId),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(
@@ -123,11 +151,11 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     );
   }
 
-  Future<void> _exportTaxationCsv() async {
+  Future<void> _exportTaxationCsv(int probaInfoId) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final dependencies = DependenciesScope.of(context);
     final csvContent = await dependencies.taxationCharacteristicRepository
-        .buildCsv();
+        .buildCsv(probaInfoId);
     final fileName = await const TaxationCsvExporter().export(csvContent);
 
     if (fileName == null) {

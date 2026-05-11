@@ -22,12 +22,11 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 9,
+      version: 1,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: _createDB,
-      onUpgrade: _upgradeDB,
     );
   }
 
@@ -52,46 +51,21 @@ CREATE TABLE subject_districts (
 )
 ''');
 
-    await _createEyesTaxationTable(db);
     await _createProbaInfoTable(db);
+    await _createEyesTaxationTable(db);
     await _createTreeInformationTable(db);
     await _createUndergrowthTable(db);
     await _createUnderstoryTable(db);
     await _createDeadwoodTable(db);
     await _createStumpsTable(db);
-  }
-
-  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _createEyesTaxationTable(db);
-    }
-    if (oldVersion < 3) {
-      await _createProbaInfoTable(db);
-    }
-    if (oldVersion < 4) {
-      await _createTreeInformationTable(db);
-    }
-    if (oldVersion < 5) {
-      await _createUndergrowthTable(db);
-    }
-    if (oldVersion < 6) {
-      await _createUnderstoryTable(db);
-    }
-    if (oldVersion < 7) {
-      await _createDeadwoodTable(db);
-    }
-    if (oldVersion == 7) {
-      await _migrateDeadwoodToSingleDiameter(db);
-    }
-    if (oldVersion < 9) {
-      await _createStumpsTable(db);
-    }
+    await _createSoilsTable(db);
   }
 
   Future<void> _createEyesTaxationTable(Database db) async {
     await db.execute('''
 CREATE TABLE IF NOT EXISTS eyes_taxation (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proba_info_id INTEGER NOT NULL,
   tier INTEGER NOT NULL,
   dominant_species TEXT NOT NULL,
   composition_coefficient REAL NOT NULL,
@@ -99,16 +73,18 @@ CREATE TABLE IF NOT EXISTS eyes_taxation (
   average_height REAL NOT NULL,
   diameter REAL NOT NULL,
   density REAL NOT NULL,
-  stock REAL NOT NULL,
   forest_type TEXT NOT NULL,
   site_class TEXT NOT NULL,
   tlu TEXT NOT NULL,
   plantations_total INTEGER NOT NULL,
   coniferous_total INTEGER NOT NULL,
+  dry_standing REAL NOT NULL,
+  non_liquid_wood REAL NOT NULL,
   canopy_closure REAL NOT NULL,
   sparseness REAL NOT NULL,
   commercial_wood_output REAL NOT NULL,
-  merchantability_class TEXT NOT NULL
+  merchantability_class TEXT NOT NULL,
+  FOREIGN KEY (proba_info_id) REFERENCES proba_info (id) ON DELETE CASCADE
 )
 ''');
   }
@@ -248,49 +224,33 @@ CREATE TABLE IF NOT EXISTS stumps (
 ''');
   }
 
-  Future<void> _migrateDeadwoodToSingleDiameter(Database db) async {
+  Future<void> _createSoilsTable(Database db) async {
     await db.execute('''
-CREATE TABLE IF NOT EXISTS deadwood_new (
+CREATE TABLE IF NOT EXISTS soils (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proba_info_id INTEGER NOT NULL,
-  species TEXT NOT NULL,
-  length REAL NOT NULL,
-  diameter INTEGER NOT NULL,
-  millimeter INTEGER,
-  rot_size REAL,
-  rot_length REAL,
-  decay_stage TEXT NOT NULL,
+  soil_type TEXT NOT NULL,
+  soil_moisture TEXT NOT NULL,
+  soil_depth TEXT NOT NULL,
+  upper_soil_horizon TEXT NOT NULL,
+  lower_soil_horizon TEXT NOT NULL,
+  ground_water_level REAL NOT NULL,
+  litter_subhorizon REAL NOT NULL,
+  fermentative_litter REAL NOT NULL,
+  humified_litter REAL NOT NULL,
+  peaty_humus REAL NOT NULL,
+  coarse_humus REAL NOT NULL,
+  humus REAL NOT NULL,
+  humus_to_eluvial_transition REAL NOT NULL,
+  podzolic_horizon REAL NOT NULL,
+  second_humus REAL NOT NULL,
+  classification_1977 TEXT NOT NULL,
+  classification_2004 TEXT NOT NULL,
+  wrb_2015 TEXT NOT NULL,
+  note TEXT NOT NULL,
   FOREIGN KEY (proba_info_id) REFERENCES proba_info (id) ON DELETE CASCADE
 )
 ''');
-
-    await db.execute('''
-INSERT INTO deadwood_new (
-  id,
-  proba_info_id,
-  species,
-  length,
-  diameter,
-  millimeter,
-  rot_size,
-  rot_length,
-  decay_stage
-)
-SELECT
-  id,
-  proba_info_id,
-  species,
-  length,
-  first_diameter,
-  millimeter,
-  rot_size,
-  rot_length,
-  decay_stage
-FROM deadwood
-''');
-
-    await db.execute('DROP TABLE deadwood');
-    await db.execute('ALTER TABLE deadwood_new RENAME TO deadwood');
   }
 
   Future<void> close() async {
