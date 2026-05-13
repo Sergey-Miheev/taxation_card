@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:taxation_card/core/constants/constants.dart';
+import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
@@ -644,55 +644,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   }
 
   Future<void> _showSpeciesDialog() async {
-    var localSelected = _selectedSpecies;
-
-    final result = await showDialog<String>(
+    final result = await showSpeciesPickerDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Выберите породу'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: allSpecies.length,
-                  itemBuilder: (context, index) {
-                    final species = allSpecies[index];
-                    final isSelected = localSelected == species;
-
-                    return ListTile(
-                      title: Text(species),
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        isSelected
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                      ),
-                      onTap: () {
-                        setDialogState(() => localSelected = species);
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Отмена'),
-                ),
-                FilledButton(
-                  onPressed: localSelected == null
-                      ? null
-                      : () => Navigator.pop(context, localSelected),
-                  child: const Text('Подтвердить'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      selectedSpecies: _selectedSpecies,
     );
 
     if (result != null && mounted) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:taxation_card/core/constants/constants.dart';
+import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
@@ -177,10 +177,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Выберите диаметр',
-                  style: theme.textTheme.labelLarge,
-                ),
+                Text('Выберите диаметр', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,50 +580,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   }
 
   Future<void> _showSpeciesDialog() async {
-    String? localSelected;
-
-    final result = await showDialog<String>(
+    final result = await showSpeciesPickerDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Выберите породу'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: allSpecies.length,
-                  itemBuilder: (context, index) {
-                    final species = allSpecies[index];
-                    return RadioListTile<String>(
-                      title: Text(species),
-                      value: species,
-                      groupValue: localSelected,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (value) {
-                        setDialogState(() => localSelected = value);
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Отмена'),
-                ),
-                FilledButton(
-                  onPressed: localSelected == null
-                      ? null
-                      : () => Navigator.pop(context, localSelected),
-                  child: const Text('Подтвердить'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      selectedSpecies: _selectedDynamicElement,
     );
 
     if (result != null && mounted) {
