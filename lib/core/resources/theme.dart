@@ -7,7 +7,6 @@ final ThemeData lightTheme = ThemeData(
     primary: AppColors.primary,
     secondary: AppColors.secondary,
     surface: AppColors.surface,
-    onPrimary: Colors.white,
     onSecondary: Colors.white,
     onSurface: AppColors.text,
   ),

@@ -33,6 +33,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   String? _selectedDecayStage = _decayStageOptions.first;
   int? _selectedDiameterNumber;
   int? _selectedMillimeterNumber;
+  bool _isSelectedDiameterManual = false;
   int? _loadedProbaInfoId;
 
   @override
@@ -190,18 +191,39 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                 Text('Средний диаметр', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 DiameterPicker(
-                  selectedDiameters: _selectedDiameterNumber == null
+                  selections: _selectedDiameterNumber == null
                       ? const []
-                      : [_selectedDiameterNumber!],
-                  selectedMillimeter: _selectedMillimeterNumber,
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedDiameterNumber!,
+                            millimeter: _selectedMillimeterNumber ?? 0,
+                            isManual: _isSelectedDiameterManual,
+                          ),
+                        ],
                   onDiameterSelected: _toggleDiameterNumber,
                   onMillimeterSelected: (number) {
                     setState(() {
-                      _selectedMillimeterNumber =
-                          _selectedMillimeterNumber == number ? null : number;
+                      _selectedMillimeterNumber = number;
                     });
                     _notifyDiameterChanged();
                   },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedDiameterNumber = selection.diameter;
+                      _selectedMillimeterNumber = selection.millimeter;
+                      _isSelectedDiameterManual = true;
+                    });
+                    _notifyDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedDiameterNumber = null;
+                      _selectedMillimeterNumber = null;
+                      _isSelectedDiameterManual = false;
+                    });
+                    _notifyDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -418,6 +440,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       _selectedDiameterNumber = _selectedDiameterNumber == number
           ? null
           : number;
+      _isSelectedDiameterManual = false;
     });
     _notifyDiameterChanged();
   }
@@ -426,7 +449,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     context.read<DeadwoodBloc>().add(
       DeadwoodEvent.diameterChanged(
         diameter: _selectedDiameterNumber,
-        millimeter: _selectedMillimeterNumber,
+        millimeter: _selectedDiameterNumber == null
+            ? null
+            : _selectedMillimeterNumber ?? 0,
       ),
     );
   }
@@ -484,7 +509,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       species: _selectedSpecies!,
       length: _parseRequiredDouble(_lengthController.text),
       diameter: _selectedDiameterNumber!,
-      millimeter: _selectedMillimeterNumber,
+      millimeter: _selectedMillimeterNumber ?? 0,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
       decayStage: _selectedDecayStage!,

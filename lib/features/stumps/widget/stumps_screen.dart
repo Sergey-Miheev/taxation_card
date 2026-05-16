@@ -35,6 +35,8 @@ final class _StumpsScreenState extends State<StumpsScreen>
   int? _selectedStumpHeightMillimeter;
   int? _selectedRootCollarDiameter;
   int? _selectedRootCollarMillimeter;
+  bool _isSelectedStumpHeightDiameterManual = false;
+  bool _isSelectedRootCollarDiameterManual = false;
   int? _loadedProbaInfoId;
 
   @override
@@ -189,20 +191,39 @@ final class _StumpsScreenState extends State<StumpsScreen>
                 ),
                 const SizedBox(height: 8),
                 DiameterPicker(
-                  selectedDiameters: _selectedStumpHeightDiameter == null
+                  selections: _selectedStumpHeightDiameter == null
                       ? const []
-                      : [_selectedStumpHeightDiameter!],
-                  selectedMillimeter: _selectedStumpHeightMillimeter,
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedStumpHeightDiameter!,
+                            millimeter: _selectedStumpHeightMillimeter ?? 0,
+                            isManual: _isSelectedStumpHeightDiameterManual,
+                          ),
+                        ],
                   onDiameterSelected: _toggleStumpHeightDiameter,
                   onMillimeterSelected: (number) {
                     setState(() {
-                      _selectedStumpHeightMillimeter =
-                          _selectedStumpHeightMillimeter == number
-                          ? null
-                          : number;
+                      _selectedStumpHeightMillimeter = number;
                     });
                     _notifyStumpHeightDiameterChanged();
                   },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedStumpHeightDiameter = selection.diameter;
+                      _selectedStumpHeightMillimeter = selection.millimeter;
+                      _isSelectedStumpHeightDiameterManual = true;
+                    });
+                    _notifyStumpHeightDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedStumpHeightDiameter = null;
+                      _selectedStumpHeightMillimeter = null;
+                      _isSelectedStumpHeightDiameterManual = false;
+                    });
+                    _notifyStumpHeightDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -211,20 +232,39 @@ final class _StumpsScreenState extends State<StumpsScreen>
                 ),
                 const SizedBox(height: 8),
                 DiameterPicker(
-                  selectedDiameters: _selectedRootCollarDiameter == null
+                  selections: _selectedRootCollarDiameter == null
                       ? const []
-                      : [_selectedRootCollarDiameter!],
-                  selectedMillimeter: _selectedRootCollarMillimeter,
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedRootCollarDiameter!,
+                            millimeter: _selectedRootCollarMillimeter ?? 0,
+                            isManual: _isSelectedRootCollarDiameterManual,
+                          ),
+                        ],
                   onDiameterSelected: _toggleRootCollarDiameter,
                   onMillimeterSelected: (number) {
                     setState(() {
-                      _selectedRootCollarMillimeter =
-                          _selectedRootCollarMillimeter == number
-                          ? null
-                          : number;
+                      _selectedRootCollarMillimeter = number;
                     });
                     _notifyRootCollarDiameterChanged();
                   },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedRootCollarDiameter = selection.diameter;
+                      _selectedRootCollarMillimeter = selection.millimeter;
+                      _isSelectedRootCollarDiameterManual = true;
+                    });
+                    _notifyRootCollarDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedRootCollarDiameter = null;
+                      _selectedRootCollarMillimeter = null;
+                      _isSelectedRootCollarDiameterManual = false;
+                    });
+                    _notifyRootCollarDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 _buildNumberField(
@@ -445,6 +485,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
       _selectedStumpHeightDiameter = _selectedStumpHeightDiameter == number
           ? null
           : number;
+      _isSelectedStumpHeightDiameterManual = false;
     });
     _notifyStumpHeightDiameterChanged();
   }
@@ -453,7 +494,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
     context.read<StumpsBloc>().add(
       StumpsEvent.stumpHeightDiameterChanged(
         diameter: _selectedStumpHeightDiameter,
-        millimeter: _selectedStumpHeightMillimeter,
+        millimeter: _selectedStumpHeightDiameter == null
+            ? null
+            : _selectedStumpHeightMillimeter ?? 0,
       ),
     );
   }
@@ -463,6 +506,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
       _selectedRootCollarDiameter = _selectedRootCollarDiameter == number
           ? null
           : number;
+      _isSelectedRootCollarDiameterManual = false;
     });
     _notifyRootCollarDiameterChanged();
   }
@@ -471,7 +515,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
     context.read<StumpsBloc>().add(
       StumpsEvent.rootCollarDiameterChanged(
         diameter: _selectedRootCollarDiameter,
-        millimeter: _selectedRootCollarMillimeter,
+        millimeter: _selectedRootCollarDiameter == null
+            ? null
+            : _selectedRootCollarMillimeter ?? 0,
       ),
     );
   }
@@ -538,9 +584,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
       species: _selectedSpecies!,
       stumpHeight: _parseRequiredDouble(_stumpHeightController.text),
       stumpHeightDiameter: _selectedStumpHeightDiameter!,
-      stumpHeightMillimeter: _selectedStumpHeightMillimeter,
+      stumpHeightMillimeter: _selectedStumpHeightMillimeter ?? 0,
       rootCollarDiameter: _selectedRootCollarDiameter!,
-      rootCollarMillimeter: _selectedRootCollarMillimeter,
+      rootCollarMillimeter: _selectedRootCollarMillimeter ?? 0,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
       decayStage: _selectedDecayStage!,
