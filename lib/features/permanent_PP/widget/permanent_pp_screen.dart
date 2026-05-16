@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/constants/constants.dart';
+import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
@@ -177,130 +178,26 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Выберите диаметр',
-                  style: theme.textTheme.labelLarge,
-                ),
+                Text('Выберите диаметр', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 10,
-                      child: Container(
-                        padding: const EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                          ),
-                        ),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 10,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                              ),
-                          itemCount: 100,
-                          itemBuilder: (context, index) {
-                            final number = index + 1;
-                            final isSelected = _selectedGridNumbers.contains(
-                              number,
-                            );
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    _selectedGridNumbers.remove(number);
-                                  } else if (_selectedGridNumbers.length < 2) {
-                                    _selectedGridNumbers.add(number);
-                                  }
-                                });
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '$number',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontSize: 12,
-                                    color: isSelected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurfaceVariant,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 1,
-                              mainAxisSpacing: 4,
-                            ),
-                        itemCount: 10,
-                        itemBuilder: (context, index) {
-                          final number = 9 - index;
-                          final isSelected =
-                              _selectedRightColumnNumber == number;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedRightColumnNumber = null;
-                                } else {
-                                  _selectedRightColumnNumber = number;
-                                }
-                              });
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.secondary
-                                    : theme.colorScheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '$number',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  color: isSelected
-                                      ? theme.colorScheme.onSecondary
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                DiameterPicker(
+                  selectedDiameters: _selectedGridNumbers,
+                  selectedMillimeter: _selectedRightColumnNumber,
+                  onDiameterSelected: (number) {
+                    setState(() {
+                      if (_selectedGridNumbers.contains(number)) {
+                        _selectedGridNumbers.remove(number);
+                      } else if (_selectedGridNumbers.length < 2) {
+                        _selectedGridNumbers.add(number);
+                      }
+                    });
+                  },
+                  onMillimeterSelected: (number) {
+                    setState(() {
+                      _selectedRightColumnNumber =
+                          _selectedRightColumnNumber == number ? null : number;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 Row(

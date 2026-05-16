@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/constants/constants.dart';
+import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
@@ -187,11 +188,13 @@ final class _StumpsScreenState extends State<StumpsScreen>
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
-                _DiameterPicker(
-                  selectedDiameter: _selectedStumpHeightDiameter,
+                DiameterPicker(
+                  selectedDiameters: _selectedStumpHeightDiameter == null
+                      ? const []
+                      : [_selectedStumpHeightDiameter!],
                   selectedMillimeter: _selectedStumpHeightMillimeter,
-                  onDiameterChanged: _toggleStumpHeightDiameter,
-                  onMillimeterChanged: (number) {
+                  onDiameterSelected: _toggleStumpHeightDiameter,
+                  onMillimeterSelected: (number) {
                     setState(() {
                       _selectedStumpHeightMillimeter =
                           _selectedStumpHeightMillimeter == number
@@ -207,11 +210,13 @@ final class _StumpsScreenState extends State<StumpsScreen>
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
-                _DiameterPicker(
-                  selectedDiameter: _selectedRootCollarDiameter,
+                DiameterPicker(
+                  selectedDiameters: _selectedRootCollarDiameter == null
+                      ? const []
+                      : [_selectedRootCollarDiameter!],
                   selectedMillimeter: _selectedRootCollarMillimeter,
-                  onDiameterChanged: _toggleRootCollarDiameter,
-                  onMillimeterChanged: (number) {
+                  onDiameterSelected: _toggleRootCollarDiameter,
+                  onMillimeterSelected: (number) {
                     setState(() {
                       _selectedRootCollarMillimeter =
                           _selectedRootCollarMillimeter == number
@@ -667,123 +672,5 @@ final class _StumpsScreenState extends State<StumpsScreen>
       });
       context.read<StumpsBloc>().add(StumpsEvent.speciesChanged(result));
     }
-  }
-}
-
-final class _DiameterPicker extends StatelessWidget {
-  const _DiameterPicker({
-    required this.selectedDiameter,
-    required this.selectedMillimeter,
-    required this.onDiameterChanged,
-    required this.onMillimeterChanged,
-  });
-
-  final int? selectedDiameter;
-  final int? selectedMillimeter;
-  final ValueChanged<int> onDiameterChanged;
-  final ValueChanged<int> onMillimeterChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 10,
-          child: Container(
-            padding: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-            ),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 10,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-              ),
-              itemCount: 100,
-              itemBuilder: (context, index) {
-                final number = index + 1;
-                final isSelected = selectedDiameter == number;
-
-                return GestureDetector(
-                  onTap: () => onDiameterChanged(number),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '$number',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        color: isSelected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1,
-              mainAxisSpacing: 4,
-            ),
-            itemCount: 10,
-            itemBuilder: (context, index) {
-              final number = 9 - index;
-              final isSelected = selectedMillimeter == number;
-
-              return GestureDetector(
-                onTap: () => onMillimeterChanged(number),
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? theme.colorScheme.secondary
-                        : theme.colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
-                          ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '$number',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
-                      color: isSelected
-                          ? theme.colorScheme.onSecondary
-                          : theme.colorScheme.onSurfaceVariant,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 }
