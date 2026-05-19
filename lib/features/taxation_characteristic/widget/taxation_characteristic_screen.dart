@@ -16,51 +16,10 @@ final class TaxationCharacteristicScreen extends StatefulWidget {
 final class _TaxationCharacteristicScreenState
     extends State<TaxationCharacteristicScreen>
     with AutomaticKeepAliveClientMixin {
-  static const _forestTypes = [
-    'Черничный',
-    'Кисличный',
-    'Мшистый',
-    'Травяной',
-    'Сфагновый',
-  ];
-  static const _siteClasses = ['1Б', '1А', '1', '2', '3', '4', '5', '5А', '5Б'];
-  static const _tluValues = [
-    'A0',
-    'A1',
-    'A2',
-    'A3',
-    'A4',
-    'A5',
-    'B0',
-    'B1',
-    'B2',
-    'B3',
-    'B4',
-    'B5',
-    'C0',
-    'C1',
-    'C2',
-    'C3',
-    'C4',
-    'C5',
-    'Д0',
-    'Д1',
-    'Д2',
-    'Д3',
-    'Д4',
-    'Д5',
-    'E0',
-    'E1',
-    'E2',
-    'E3',
-    'E4',
-    'E5',
-  ];
   static const _merchantabilityClasses = ['1', '2', '3', '4'];
 
   final _formKey = GlobalKey<FormState>();
   final _tierController = TextEditingController();
-  final _dominantSpeciesController = TextEditingController();
   final _compositionCoefficientController = TextEditingController();
   final _ageController = TextEditingController();
   final _averageHeightController = TextEditingController();
@@ -90,7 +49,6 @@ final class _TaxationCharacteristicScreenState
       _syncControllers(_bloc.state);
     }
     _tierController.addListener(_onTierChanged);
-    _dominantSpeciesController.addListener(_onDominantSpeciesChanged);
     _compositionCoefficientController.addListener(
       _onCompositionCoefficientChanged,
     );
@@ -111,9 +69,6 @@ final class _TaxationCharacteristicScreenState
   void dispose() {
     _tierController
       ..removeListener(_onTierChanged)
-      ..dispose();
-    _dominantSpeciesController
-      ..removeListener(_onDominantSpeciesChanged)
       ..dispose();
     _compositionCoefficientController
       ..removeListener(_onCompositionCoefficientChanged)
@@ -249,11 +204,6 @@ final class _TaxationCharacteristicScreenState
                       labelText: 'Ярус',
                     ),
                     const SizedBox(height: 12),
-                    _buildTextField(
-                      controller: _dominantSpeciesController,
-                      labelText: 'Преобладающая порода',
-                    ),
-                    const SizedBox(height: 12),
                     _buildNumberField(
                       controller: _compositionCoefficientController,
                       labelText: 'Коэффициент состава',
@@ -263,63 +213,6 @@ final class _TaxationCharacteristicScreenState
                     _buildNumberField(
                       controller: _ageController,
                       labelText: 'Возраст',
-                    ),
-                    const SizedBox(height: 12),
-                    BlocBuilder<
-                      TaxationCharacteristicBloc,
-                      TaxationCharacteristicState
-                    >(
-                      buildWhen: (previous, current) =>
-                          previous.forestType != current.forestType,
-                      builder: (context, state) {
-                        return _buildDropdownField(
-                          labelText: 'Тип леса',
-                          value: state.forestType,
-                          items: _forestTypes,
-                          onChanged: (value) => _onDropdownChanged(
-                            TaxationCharacteristicField.forestType,
-                            value,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    BlocBuilder<
-                      TaxationCharacteristicBloc,
-                      TaxationCharacteristicState
-                    >(
-                      buildWhen: (previous, current) =>
-                          previous.siteClass != current.siteClass,
-                      builder: (context, state) {
-                        return _buildDropdownField(
-                          labelText: 'Класс бонитета',
-                          value: state.siteClass,
-                          items: _siteClasses,
-                          onChanged: (value) => _onDropdownChanged(
-                            TaxationCharacteristicField.siteClass,
-                            value,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    BlocBuilder<
-                      TaxationCharacteristicBloc,
-                      TaxationCharacteristicState
-                    >(
-                      buildWhen: (previous, current) =>
-                          previous.tlu != current.tlu,
-                      builder: (context, state) {
-                        return _buildDropdownField(
-                          labelText: 'ТЛУ',
-                          value: state.tlu,
-                          items: _tluValues,
-                          onChanged: (value) => _onDropdownChanged(
-                            TaxationCharacteristicField.tlu,
-                            value,
-                          ),
-                        );
-                      },
                     ),
                   ],
                 ),
@@ -454,18 +347,6 @@ final class _TaxationCharacteristicScreenState
     );
   }
 
-  TextFormField _buildTextField({
-    required TextEditingController controller,
-    required String labelText,
-  }) {
-    return TextFormField(
-      controller: controller,
-      textInputAction: TextInputAction.next,
-      decoration: _inputDecoration(labelText),
-      validator: _validateRequiredText,
-    );
-  }
-
   TextFormField _buildNumberField({
     required TextEditingController controller,
     required String labelText,
@@ -488,14 +369,6 @@ final class _TaxationCharacteristicScreenState
     );
   }
 
-  String? _validateRequiredText(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Заполните поле';
-    }
-
-    return null;
-  }
-
   String? _validatePositiveNumber(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Заполните поле';
@@ -515,7 +388,6 @@ final class _TaxationCharacteristicScreenState
 
   void _syncControllers(TaxationCharacteristicState state) {
     _setControllerText(_tierController, state.tier ?? '');
-    _setControllerText(_dominantSpeciesController, state.dominantSpecies);
     _setControllerText(
       _compositionCoefficientController,
       state.compositionCoefficient,
@@ -538,7 +410,6 @@ final class _TaxationCharacteristicScreenState
 
   void _syncControllersFromRecord(TaxationCharacteristicRecord record) {
     _setControllerText(_tierController, record.tier ?? '');
-    _setControllerText(_dominantSpeciesController, record.dominantSpecies);
     _setControllerText(
       _compositionCoefficientController,
       record.compositionCoefficient,
@@ -576,15 +447,11 @@ final class _TaxationCharacteristicScreenState
     TaxationCharacteristicState current,
   ) {
     return previous.tier != current.tier ||
-        previous.dominantSpecies != current.dominantSpecies ||
         previous.compositionCoefficient != current.compositionCoefficient ||
         previous.age != current.age ||
         previous.averageHeight != current.averageHeight ||
         previous.diameter != current.diameter ||
         previous.density != current.density ||
-        previous.forestType != current.forestType ||
-        previous.siteClass != current.siteClass ||
-        previous.tlu != current.tlu ||
         previous.plantationsTotal != current.plantationsTotal ||
         previous.coniferousTotal != current.coniferousTotal ||
         previous.dryStanding != current.dryStanding ||
@@ -602,15 +469,11 @@ final class _TaxationCharacteristicScreenState
     }
 
     return initialRecord.tier != state.tier ||
-        initialRecord.dominantSpecies != state.dominantSpecies ||
         initialRecord.compositionCoefficient != state.compositionCoefficient ||
         initialRecord.age != state.age ||
         initialRecord.averageHeight != state.averageHeight ||
         initialRecord.diameter != state.diameter ||
         initialRecord.density != state.density ||
-        initialRecord.forestType != state.forestType ||
-        initialRecord.siteClass != state.siteClass ||
-        initialRecord.tlu != state.tlu ||
         initialRecord.plantationsTotal != state.plantationsTotal ||
         initialRecord.coniferousTotal != state.coniferousTotal ||
         initialRecord.dryStanding != state.dryStanding ||
@@ -630,15 +493,11 @@ final class _TaxationCharacteristicScreenState
       probaInfoId:
           state.selectedProbaInfoId ?? widget.initialRecord!.probaInfoId,
       tier: state.tier,
-      dominantSpecies: state.dominantSpecies,
       compositionCoefficient: state.compositionCoefficient,
       age: state.age,
       averageHeight: state.averageHeight,
       diameter: state.diameter,
       density: state.density,
-      forestType: state.forestType,
-      siteClass: state.siteClass,
-      tlu: state.tlu,
       plantationsTotal: state.plantationsTotal,
       coniferousTotal: state.coniferousTotal,
       dryStanding: state.dryStanding,
@@ -662,13 +521,6 @@ final class _TaxationCharacteristicScreenState
 
   void _onTierChanged() {
     _onTextChanged(TaxationCharacteristicField.tier, _tierController.text);
-  }
-
-  void _onDominantSpeciesChanged() {
-    _onTextChanged(
-      TaxationCharacteristicField.dominantSpecies,
-      _dominantSpeciesController.text,
-    );
   }
 
   void _onCompositionCoefficientChanged() {

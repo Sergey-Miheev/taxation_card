@@ -6,6 +6,7 @@ import 'package:taxation_card/features/home/domain/home_csv_exporter.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
+import 'package:taxation_card/features/proba_info/domain/forestry_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/soils/domain/soils_repository.dart';
@@ -28,6 +29,7 @@ final class Dependencies {
     required this.soilsBloc,
     required this.taxationCharacteristicBloc,
     required this.subjectsRepository,
+    required this.forestryRepository,
     required this.probaInfoRepository,
     required this.treeInformationRepository,
     required this.deadwoodRepository,
@@ -48,6 +50,7 @@ final class Dependencies {
   final SoilsBloc soilsBloc;
   final TaxationCharacteristicBloc taxationCharacteristicBloc;
   final SubjectsRepository subjectsRepository;
+  final ForestryRepository forestryRepository;
   final ProbaInfoRepository probaInfoRepository;
   final TreeInformationRepository treeInformationRepository;
   final DeadwoodRepository deadwoodRepository;

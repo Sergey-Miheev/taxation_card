@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
+import 'package:taxation_card/features/proba_info/domain/forestry_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 
 final class ProbaInfoScreen extends StatefulWidget {
@@ -13,6 +16,78 @@ final class ProbaInfoScreen extends StatefulWidget {
 }
 
 final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
+  static const _forestTypes = [
+    'СБЕЛ',
+    'СЛОС',
+    'СБР',
+    'СВЕР',
+    'СЧ',
+    'СМОЛ',
+    'СД',
+    'ССФ',
+    'СМБР',
+    'СОРЛ',
+    'СЛПК',
+    'СТР',
+    'СМЧ',
+    'СОССФ',
+    'СЛЛ',
+    'СДУБ',
+    'СК',
+    'СПР',
+    'ЕБР',
+    'ЕЧ',
+    'ЕД',
+    'ЕСФ',
+    'ЕЛП',
+    'ЕЛПК',
+    'ЕК',
+    'ЕПР',
+    'ЕДУБ',
+    'ДСН',
+    'ДЕЛЛ',
+    'ДКЛП',
+    'ДПМТ',
+    'БОС',
+    'ОЛЬШ',
+    'ТПМ',
+    'СТОС',
+    'БТОС',
+  ];
+  static const _siteClasses = ['1Б', '1А', '1', '2', '3', '4', '5', '5А', '5Б'];
+  static const _tluValues = [
+    'A0',
+    'A1',
+    'A2',
+    'A3',
+    'A4',
+    'A5',
+    'B0',
+    'B1',
+    'B2',
+    'B3',
+    'B4',
+    'B5',
+    'C0',
+    'C1',
+    'C2',
+    'C3',
+    'C4',
+    'C5',
+    'Д0',
+    'Д1',
+    'Д2',
+    'Д3',
+    'Д4',
+    'Д5',
+    'E0',
+    'E1',
+    'E2',
+    'E3',
+    'E4',
+    'E5',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _quarterController = TextEditingController();
   final TextEditingController _allotmentController = TextEditingController();
@@ -22,11 +97,27 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       TextEditingController();
   final TextEditingController _forestryController = TextEditingController();
   final TextEditingController _subForestryController = TextEditingController();
+  final TextEditingController _dominantSpeciesController =
+      TextEditingController();
+  final TextEditingController _soilController = TextEditingController();
+  final TextEditingController _livingGroundCoverController =
+      TextEditingController();
+  final TextEditingController _undergrowthController = TextEditingController();
+  final TextEditingController _understoryController = TextEditingController();
+  final FocusNode _forestryFocusNode = FocusNode();
+  final FocusNode _subForestryFocusNode = FocusNode();
 
   ProbaInfoRecord? _initialRecord;
+  List<DistrictForestryRecord> _districtForestries = const [];
+  List<SubForestryRecord> _subForestries = const [];
   String? _selectedRegion;
   String? _selectedDistrict;
+  String? _selectedSiteClass;
+  String? _selectedForestType;
+  String? _selectedTlu;
+  var _didLoadForestrySuggestions = false;
   var _isSaving = false;
+  var _showValidationErrors = false;
 
   @override
   void initState() {
@@ -36,6 +127,9 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     if (initialRecord != null) {
       _selectedRegion = initialRecord.region;
       _selectedDistrict = initialRecord.district;
+      _selectedSiteClass = initialRecord.siteClass;
+      _selectedForestType = initialRecord.forestType;
+      _selectedTlu = initialRecord.tlu;
       _syncControllers(initialRecord);
     }
 
@@ -45,6 +139,22 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     _samplePlotAreaController.addListener(_onFormChanged);
     _forestryController.addListener(_onFormChanged);
     _subForestryController.addListener(_onFormChanged);
+    _dominantSpeciesController.addListener(_onFormChanged);
+    _soilController.addListener(_onFormChanged);
+    _livingGroundCoverController.addListener(_onFormChanged);
+    _undergrowthController.addListener(_onFormChanged);
+    _understoryController.addListener(_onFormChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadForestrySuggestions) {
+      return;
+    }
+
+    _didLoadForestrySuggestions = true;
+    unawaited(_loadForestrySuggestions());
   }
 
   @override
@@ -67,6 +177,23 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     _subForestryController
       ..removeListener(_onFormChanged)
       ..dispose();
+    _dominantSpeciesController
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _soilController
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _livingGroundCoverController
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _undergrowthController
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _understoryController
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _forestryFocusNode.dispose();
+    _subForestryFocusNode.dispose();
     super.dispose();
   }
 
@@ -85,7 +212,9 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       ),
       body: Form(
         key: _formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
+        autovalidateMode: _showValidationErrors
+            ? AutovalidateMode.always
+            : AutovalidateMode.onUserInteraction,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isTablet = constraints.maxWidth >= 720;
@@ -126,6 +255,8 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                         _buildSamplePlotCard(),
                       ],
                       const SizedBox(height: 16),
+                      _buildForestDescriptionCard(),
+                      const SizedBox(height: 16),
                       _buildSaveButton(),
                     ],
                   ),
@@ -151,6 +282,17 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     );
     _setControllerText(_forestryController, record.forestry ?? '');
     _setControllerText(_subForestryController, record.subForestry ?? '');
+    _setControllerText(
+      _dominantSpeciesController,
+      record.dominantSpecies ?? '',
+    );
+    _setControllerText(_soilController, record.soil ?? '');
+    _setControllerText(
+      _livingGroundCoverController,
+      record.livingGroundCover ?? '',
+    );
+    _setControllerText(_undergrowthController, record.undergrowth ?? '');
+    _setControllerText(_understoryController, record.understory ?? '');
   }
 
   void _setControllerText(TextEditingController controller, String text) {
@@ -173,6 +315,29 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     setState(() {});
   }
 
+  Future<void> _loadForestrySuggestions() async {
+    try {
+      final repository = DependenciesScope.of(context).forestryRepository;
+      final districtForestries = await repository.getDistrictForestries();
+      final subForestries = await repository.getSubForestries();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _districtForestries = districtForestries;
+        _subForestries = subForestries;
+      });
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('Не удалось загрузить подсказки лесничеств');
+    }
+  }
+
   Widget _buildLocationCard() {
     return _SectionCard(
       title: 'Местоположение',
@@ -185,20 +350,28 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                 isExpanded: true,
                 initialValue: _selectedRegion,
                 decoration: _inputDecoration(labelText: 'Субъект РФ'),
-                items: russianFederationData.keys
-                    .map(
-                      (region) => DropdownMenuItem(
-                        value: region,
-                        child: Text(region, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
+                items:
+                    _dropdownItemsWithCurrent(
+                          russianFederationData.keys,
+                          _selectedRegion,
+                        )
+                        .map(
+                          (region) => DropdownMenuItem(
+                            value: region,
+                            child: Text(
+                              region,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (regionValue) {
                   setState(() {
                     _selectedRegion = regionValue;
                     _selectedDistrict = null;
                   });
                 },
+                validator: _validateRequiredDropdown,
               ),
               DropdownButtonFormField<String>(
                 key: ValueKey(
@@ -207,36 +380,53 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                 isExpanded: true,
                 initialValue: _selectedDistrict,
                 decoration: _inputDecoration(labelText: 'Муниципальный район'),
-                items: russianFederationData[_selectedRegion]
-                    ?.map(
-                      (district) => DropdownMenuItem(
-                        value: district,
-                        child: Text(district, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
+                items:
+                    _dropdownItemsWithCurrent(
+                          russianFederationData[_selectedRegion] ?? const [],
+                          _selectedDistrict,
+                        )
+                        .map(
+                          (district) => DropdownMenuItem(
+                            value: district,
+                            child: Text(
+                              district,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (districtValue) {
                   setState(() {
                     _selectedDistrict = districtValue;
                   });
                 },
+                validator: _validateRequiredDropdown,
               ),
             ],
           ),
           const SizedBox(height: 12),
           _buildResponsiveFields(
             children: [
-              TextFormField(
+              _buildAutocompleteField(
                 controller: _forestryController,
-                textInputAction: TextInputAction.next,
-                decoration: _inputDecoration(labelText: 'Районное лесничество'),
+                focusNode: _forestryFocusNode,
+                labelText: 'Районное лесничество',
+                optionsBuilder: _districtForestryOptions,
+                onSelected: (value) {
+                  _forestryController.text = value;
+                  _subForestryController.clear();
+                  _onFormChanged();
+                },
               ),
-              TextFormField(
+              _buildAutocompleteField(
                 controller: _subForestryController,
-                textInputAction: TextInputAction.next,
-                decoration: _inputDecoration(
-                  labelText: 'Участковое лесничество',
-                ),
+                focusNode: _subForestryFocusNode,
+                labelText: 'Участковое лесничество',
+                optionsBuilder: _subForestryOptions,
+                onSelected: (value) {
+                  _subForestryController.text = value;
+                  _onFormChanged();
+                },
               ),
             ],
           ),
@@ -269,6 +459,167 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildForestDescriptionCard() {
+    return _SectionCard(
+      title: 'Лесорастительные условия',
+      child: Column(
+        children: [
+          _buildResponsiveFields(
+            children: [
+              _buildTextField(
+                controller: _dominantSpeciesController,
+                labelText: 'Преобладающая порода',
+              ),
+              _buildDropdownField(
+                labelText: 'Класс бонитета',
+                value: _selectedSiteClass,
+                items: _siteClasses,
+                onChanged: (value) {
+                  setState(() => _selectedSiteClass = value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildResponsiveFields(
+            children: [
+              _buildDropdownField(
+                labelText: 'Тип леса',
+                value: _selectedForestType,
+                items: _forestTypes,
+                onChanged: (value) {
+                  setState(() => _selectedForestType = value);
+                },
+              ),
+              _buildDropdownField(
+                labelText: 'ТЛУ',
+                value: _selectedTlu,
+                items: _tluValues,
+                onChanged: (value) {
+                  setState(() => _selectedTlu = value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildResponsiveFields(
+            children: [
+              _buildTextField(controller: _soilController, labelText: 'Почва'),
+              _buildTextField(
+                controller: _livingGroundCoverController,
+                labelText: 'Живой почвенный покров',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildResponsiveFields(
+            children: [
+              _buildTextField(
+                controller: _undergrowthController,
+                labelText: 'Подрост',
+              ),
+              _buildTextField(
+                controller: _understoryController,
+                labelText: 'Подлесок',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextFormField _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      textInputAction: TextInputAction.next,
+      decoration: _inputDecoration(labelText: labelText),
+      validator: _validateRequiredText,
+    );
+  }
+
+  Widget _buildAutocompleteField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String labelText,
+    required Iterable<String> Function(String value) optionsBuilder,
+    required ValueChanged<String> onSelected,
+  }) {
+    return RawAutocomplete<String>(
+      textEditingController: controller,
+      focusNode: focusNode,
+      displayStringForOption: (option) => option,
+      optionsBuilder: (textEditingValue) =>
+          optionsBuilder(textEditingValue.text),
+      onSelected: onSelected,
+      fieldViewBuilder:
+          (context, textEditingController, focusNode, onFieldSubmitted) {
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.next,
+              decoration: _inputDecoration(labelText: labelText),
+              validator: _validateRequiredText,
+            );
+          },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240, maxWidth: 520),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+
+                  return InkWell(
+                    onTap: () => onSelected(option),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Text(option, overflow: TextOverflow.ellipsis),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  DropdownButtonFormField<String> _buildDropdownField({
+    required String labelText,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: _inputDecoration(labelText: labelText),
+      items: _dropdownItemsWithCurrent(items, value)
+          .map(
+            (item) => DropdownMenuItem<String>(value: item, child: Text(item)),
+          )
+          .toList(),
+      onChanged: onChanged,
+      validator: (selectedValue) =>
+          selectedValue == null ? 'Выберите значение' : null,
     );
   }
 
@@ -311,7 +662,14 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
   }
 
   Future<void> _saveProbaInfo() async {
+    if (_isSaving) {
+      return;
+    }
+
+    setState(() => _showValidationErrors = true);
+
     if (!(_formKey.currentState?.validate() ?? false)) {
+      _showSnackBar('Заполните все поля. Пробелы не считаются значением');
       return;
     }
 
@@ -332,18 +690,20 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Данные сохранены')));
+      _showSnackBar('Данные сохранены');
       Navigator.of(context).pop(true);
+    } on FormatException catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('Проверьте числовые поля');
     } on Object catch (_) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось сохранить данные')),
-      );
+      _showSnackBar('Не удалось сохранить данные');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -358,6 +718,14 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       district: _emptyToNull(_selectedDistrict),
       forestry: _emptyToNull(_forestryController.text),
       subForestry: _emptyToNull(_subForestryController.text),
+      dominantSpecies: _emptyToNull(_dominantSpeciesController.text),
+      siteClass: _emptyToNull(_selectedSiteClass),
+      forestType: _emptyToNull(_selectedForestType),
+      tlu: _emptyToNull(_selectedTlu),
+      soil: _emptyToNull(_soilController.text),
+      livingGroundCover: _emptyToNull(_livingGroundCoverController.text),
+      undergrowth: _emptyToNull(_undergrowthController.text),
+      understory: _emptyToNull(_understoryController.text),
       quarter: _parseInt(_quarterController.text),
       allotment: _parseInt(_allotmentController.text),
       samplePlotNumber: _parseInt(_samplePlotNumberController.text),
@@ -376,6 +744,17 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
         initialRecord.forestry != _emptyToNull(_forestryController.text) ||
         initialRecord.subForestry !=
             _emptyToNull(_subForestryController.text) ||
+        initialRecord.dominantSpecies !=
+            _emptyToNull(_dominantSpeciesController.text) ||
+        initialRecord.siteClass != _emptyToNull(_selectedSiteClass) ||
+        initialRecord.forestType != _emptyToNull(_selectedForestType) ||
+        initialRecord.tlu != _emptyToNull(_selectedTlu) ||
+        initialRecord.soil != _emptyToNull(_soilController.text) ||
+        initialRecord.livingGroundCover !=
+            _emptyToNull(_livingGroundCoverController.text) ||
+        initialRecord.undergrowth !=
+            _emptyToNull(_undergrowthController.text) ||
+        initialRecord.understory != _emptyToNull(_understoryController.text) ||
         initialRecord.quarter != _tryParseInt(_quarterController.text) ||
         initialRecord.allotment != _tryParseInt(_allotmentController.text) ||
         initialRecord.samplePlotNumber !=
@@ -396,6 +775,22 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
 
     if (parsedValue <= 0) {
       return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String? _validateRequiredText(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Заполните поле';
+    }
+
+    return null;
+  }
+
+  String? _validateRequiredDropdown(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Выберите значение';
     }
 
     return null;
@@ -449,6 +844,79 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     }
 
     return trimmed;
+  }
+
+  List<String> _dropdownItemsWithCurrent(
+    Iterable<String> items,
+    String? currentValue,
+  ) {
+    final values = items.toList();
+    final current = _emptyToNull(currentValue);
+    if (current == null || values.contains(current)) {
+      return values;
+    }
+
+    return [current, ...values];
+  }
+
+  Iterable<String> _districtForestryOptions(String value) {
+    return _filterUniqueOptions(
+      _districtForestries.map((forestry) => forestry.name),
+      value,
+    );
+  }
+
+  Iterable<String> _subForestryOptions(String value) {
+    final districtForestryName = _forestryController.text.trim();
+    final districtForestryCodes = _districtForestries
+        .where((forestry) => forestry.name == districtForestryName)
+        .map((forestry) => forestry.fgisCode)
+        .toSet();
+
+    final options = districtForestryCodes.isEmpty
+        ? _subForestries.map((forestry) => forestry.name)
+        : _subForestries
+              .where(
+                (forestry) => districtForestryCodes.contains(
+                  forestry.districtForestryCode,
+                ),
+              )
+              .map((forestry) => forestry.name);
+
+    return _filterUniqueOptions(options, value);
+  }
+
+  Iterable<String> _filterUniqueOptions(
+    Iterable<String> options,
+    String value,
+  ) {
+    final query = value.trim().toLowerCase();
+    final result = <String>[];
+    final seen = <String>{};
+
+    for (final option in options) {
+      final normalizedOption = option.toLowerCase();
+      if (query.isNotEmpty && !normalizedOption.contains(query)) {
+        continue;
+      }
+
+      if (!seen.add(option)) {
+        continue;
+      }
+
+      result.add(option);
+      if (result.length >= 20) {
+        break;
+      }
+    }
+
+    return result;
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   InputDecoration _inputDecoration({required String labelText}) {

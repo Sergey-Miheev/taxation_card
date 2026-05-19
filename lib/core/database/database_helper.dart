@@ -1,5 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:taxation_card/core/database/forestry_seed_data.dart';
+import 'package:taxation_card/core/database/seed_data.dart';
 
 class DatabaseHelper {
   DatabaseHelper._init();
@@ -51,6 +53,10 @@ CREATE TABLE subject_districts (
 )
 ''');
 
+    await _createDistrictForestriesTable(db);
+    await _createSubForestriesTable(db);
+    await _seedFederationData(db);
+    await _seedForestryData(db);
     await _createProbaInfoTable(db);
     await _createEyesTaxationTable(db);
     await _createTreeInformationTable(db);
@@ -61,21 +67,80 @@ CREATE TABLE subject_districts (
     await _createSoilsTable(db);
   }
 
+  Future<void> _createDistrictForestriesTable(Database db) async {
+    await db.execute('''
+CREATE TABLE district_forestries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fgis_code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  region_code INTEGER NOT NULL
+)
+''');
+  }
+
+  Future<void> _createSubForestriesTable(Database db) async {
+    await db.execute('''
+CREATE TABLE sub_forestries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fgis_code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  region_code INTEGER NOT NULL,
+  district_forestry_code TEXT NOT NULL,
+  FOREIGN KEY (district_forestry_code) REFERENCES district_forestries (fgis_code) ON DELETE CASCADE
+)
+''');
+  }
+
+  Future<void> _seedFederationData(Database db) async {
+    for (final entry in russianFederationData.entries) {
+      final subjectId = await db.insert('federation_subjects', {
+        'name': entry.key,
+      });
+      final batch = db.batch();
+      for (final district in entry.value) {
+        batch.insert('subject_districts', {
+          'name': district,
+          'id_subject': subjectId,
+        });
+      }
+      await batch.commit(noResult: true);
+    }
+  }
+
+  Future<void> _seedForestryData(Database db) async {
+    final districtBatch = db.batch();
+    for (final forestry in districtForestrySeedData) {
+      districtBatch.insert('district_forestries', {
+        'fgis_code': forestry.fgisCode,
+        'name': forestry.name,
+        'region_code': forestry.regionCode,
+      });
+    }
+    await districtBatch.commit(noResult: true);
+
+    final subForestryBatch = db.batch();
+    for (final forestry in subForestrySeedData) {
+      subForestryBatch.insert('sub_forestries', {
+        'fgis_code': forestry.fgisCode,
+        'name': forestry.name,
+        'region_code': forestry.regionCode,
+        'district_forestry_code': forestry.districtForestryCode,
+      });
+    }
+    await subForestryBatch.commit(noResult: true);
+  }
+
   Future<void> _createEyesTaxationTable(Database db) async {
     await db.execute('''
 CREATE TABLE IF NOT EXISTS eyes_taxation (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proba_info_id INTEGER NOT NULL,
   tier INTEGER NOT NULL,
-  dominant_species TEXT NOT NULL,
   composition_coefficient REAL NOT NULL,
   age INTEGER NOT NULL,
   average_height REAL NOT NULL,
   diameter REAL NOT NULL,
   density REAL NOT NULL,
-  forest_type TEXT NOT NULL,
-  site_class TEXT NOT NULL,
-  tlu TEXT NOT NULL,
   plantations_total INTEGER NOT NULL,
   coniferous_total INTEGER NOT NULL,
   dry_standing REAL NOT NULL,
@@ -97,6 +162,14 @@ CREATE TABLE IF NOT EXISTS proba_info (
   district TEXT,
   forestry TEXT,
   sub_forestry TEXT,
+  dominant_species TEXT,
+  site_class TEXT,
+  forest_type TEXT,
+  tlu TEXT,
+  soil TEXT,
+  living_ground_cover TEXT,
+  undergrowth TEXT,
+  understory TEXT,
   quarter INTEGER NOT NULL,
   allotment INTEGER NOT NULL,
   sample_plot_number INTEGER NOT NULL,

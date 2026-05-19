@@ -3,15 +3,11 @@ import 'package:taxation_card/features/taxation_characteristic/domain/taxation_c
 
 enum TaxationCharacteristicField {
   tier,
-  dominantSpecies,
   compositionCoefficient,
   age,
   averageHeight,
   diameter,
   density,
-  forestType,
-  siteClass,
-  tlu,
   plantationsTotal,
   coniferousTotal,
   dryStanding,
@@ -90,15 +86,11 @@ enum TaxationCharacteristicStatus { idle, loading, success, failure }
 final class TaxationCharacteristicRecord {
   const TaxationCharacteristicRecord({
     required this.tier,
-    required this.dominantSpecies,
     required this.compositionCoefficient,
     required this.age,
     required this.averageHeight,
     required this.diameter,
     required this.density,
-    required this.forestType,
-    required this.siteClass,
-    required this.tlu,
     required this.plantationsTotal,
     required this.coniferousTotal,
     required this.dryStanding,
@@ -114,15 +106,11 @@ final class TaxationCharacteristicRecord {
   final int? id;
   final int probaInfoId;
   final String? tier;
-  final String dominantSpecies;
   final String compositionCoefficient;
   final String age;
   final String averageHeight;
   final String diameter;
   final String density;
-  final String? forestType;
-  final String? siteClass;
-  final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
   final String dryStanding;
@@ -138,15 +126,11 @@ final class TaxationCharacteristicState {
     this.records = const [],
     this.selectedProbaInfoId,
     this.tier,
-    this.dominantSpecies = '',
     this.compositionCoefficient = '',
     this.age = '',
     this.averageHeight = '',
     this.diameter = '',
     this.density = '',
-    this.forestType,
-    this.siteClass,
-    this.tlu,
     this.plantationsTotal = '',
     this.coniferousTotal = '',
     this.dryStanding = '',
@@ -162,15 +146,11 @@ final class TaxationCharacteristicState {
   final List<TaxationCharacteristicRecord> records;
   final int? selectedProbaInfoId;
   final String? tier;
-  final String dominantSpecies;
   final String compositionCoefficient;
   final String age;
   final String averageHeight;
   final String diameter;
   final String density;
-  final String? forestType;
-  final String? siteClass;
-  final String? tlu;
   final String plantationsTotal;
   final String coniferousTotal;
   final String dryStanding;
@@ -186,15 +166,11 @@ final class TaxationCharacteristicState {
     List<TaxationCharacteristicRecord>? records,
     int? selectedProbaInfoId,
     String? tier,
-    String? dominantSpecies,
     String? compositionCoefficient,
     String? age,
     String? averageHeight,
     String? diameter,
     String? density,
-    String? forestType,
-    String? siteClass,
-    String? tlu,
     String? plantationsTotal,
     String? coniferousTotal,
     String? dryStanding,
@@ -210,16 +186,12 @@ final class TaxationCharacteristicState {
       records: records ?? this.records,
       selectedProbaInfoId: selectedProbaInfoId ?? this.selectedProbaInfoId,
       tier: tier ?? this.tier,
-      dominantSpecies: dominantSpecies ?? this.dominantSpecies,
       compositionCoefficient:
           compositionCoefficient ?? this.compositionCoefficient,
       age: age ?? this.age,
       averageHeight: averageHeight ?? this.averageHeight,
       diameter: diameter ?? this.diameter,
       density: density ?? this.density,
-      forestType: forestType ?? this.forestType,
-      siteClass: siteClass ?? this.siteClass,
-      tlu: tlu ?? this.tlu,
       plantationsTotal: plantationsTotal ?? this.plantationsTotal,
       coniferousTotal: coniferousTotal ?? this.coniferousTotal,
       dryStanding: dryStanding ?? this.dryStanding,
@@ -285,15 +257,11 @@ final class TaxationCharacteristicBloc
       state.copyWith(
         selectedProbaInfoId: record.probaInfoId,
         tier: record.tier,
-        dominantSpecies: record.dominantSpecies,
         compositionCoefficient: record.compositionCoefficient,
         age: record.age,
         averageHeight: record.averageHeight,
         diameter: record.diameter,
         density: record.density,
-        forestType: record.forestType,
-        siteClass: record.siteClass,
-        tlu: record.tlu,
         plantationsTotal: record.plantationsTotal,
         coniferousTotal: record.coniferousTotal,
         dryStanding: record.dryStanding,
@@ -318,13 +286,6 @@ final class TaxationCharacteristicBloc
         emit(
           state.copyWith(
             tier: value,
-            status: TaxationCharacteristicStatus.idle,
-          ),
-        );
-      case TaxationCharacteristicField.dominantSpecies:
-        emit(
-          state.copyWith(
-            dominantSpecies: value,
             status: TaxationCharacteristicStatus.idle,
           ),
         );
@@ -359,24 +320,6 @@ final class TaxationCharacteristicBloc
             density: value,
             status: TaxationCharacteristicStatus.idle,
           ),
-        );
-      case TaxationCharacteristicField.forestType:
-        emit(
-          state.copyWith(
-            forestType: value,
-            status: TaxationCharacteristicStatus.idle,
-          ),
-        );
-      case TaxationCharacteristicField.siteClass:
-        emit(
-          state.copyWith(
-            siteClass: value,
-            status: TaxationCharacteristicStatus.idle,
-          ),
-        );
-      case TaxationCharacteristicField.tlu:
-        emit(
-          state.copyWith(tlu: value, status: TaxationCharacteristicStatus.idle),
         );
       case TaxationCharacteristicField.plantationsTotal:
         emit(
@@ -532,15 +475,11 @@ final class TaxationCharacteristicBloc
       id: id,
       probaInfoId: probaInfoId,
       tier: state.tier,
-      dominantSpecies: state.dominantSpecies,
       compositionCoefficient: state.compositionCoefficient,
       age: state.age,
       averageHeight: state.averageHeight,
       diameter: state.diameter,
       density: state.density,
-      forestType: state.forestType,
-      siteClass: state.siteClass,
-      tlu: state.tlu,
       plantationsTotal: state.plantationsTotal,
       coniferousTotal: state.coniferousTotal,
       dryStanding: state.dryStanding,

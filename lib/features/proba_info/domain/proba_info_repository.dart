@@ -11,6 +11,14 @@ final class ProbaInfoRecord {
     this.district,
     this.forestry,
     this.subForestry,
+    this.dominantSpecies,
+    this.siteClass,
+    this.forestType,
+    this.tlu,
+    this.soil,
+    this.livingGroundCover,
+    this.undergrowth,
+    this.understory,
   });
 
   final int? id;
@@ -18,6 +26,14 @@ final class ProbaInfoRecord {
   final String? district;
   final String? forestry;
   final String? subForestry;
+  final String? dominantSpecies;
+  final String? siteClass;
+  final String? forestType;
+  final String? tlu;
+  final String? soil;
+  final String? livingGroundCover;
+  final String? undergrowth;
+  final String? understory;
   final int quarter;
   final int allotment;
   final int samplePlotNumber;
@@ -56,6 +72,14 @@ final class ProbaInfoRepository {
       district: row['district'] as String?,
       forestry: row['forestry'] as String?,
       subForestry: row['sub_forestry'] as String?,
+      dominantSpecies: row['dominant_species'] as String?,
+      siteClass: row['site_class'] as String?,
+      forestType: row['forest_type'] as String?,
+      tlu: row['tlu'] as String?,
+      soil: row['soil'] as String?,
+      livingGroundCover: row['living_ground_cover'] as String?,
+      undergrowth: row['undergrowth'] as String?,
+      understory: row['understory'] as String?,
       quarter: row['quarter']! as int,
       allotment: row['allotment']! as int,
       samplePlotNumber: row['sample_plot_number']! as int,
@@ -69,6 +93,14 @@ final class ProbaInfoRepository {
       'district': record.district,
       'forestry': record.forestry,
       'sub_forestry': record.subForestry,
+      'dominant_species': record.dominantSpecies,
+      'site_class': record.siteClass,
+      'forest_type': record.forestType,
+      'tlu': record.tlu,
+      'soil': record.soil,
+      'living_ground_cover': record.livingGroundCover,
+      'undergrowth': record.undergrowth,
+      'understory': record.understory,
       'quarter': record.quarter,
       'allotment': record.allotment,
       'sample_plot_number': record.samplePlotNumber,

@@ -14,6 +14,7 @@ import 'package:taxation_card/features/home/domain/home_csv_exporter.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/subjects_repository.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
+import 'package:taxation_card/features/proba_info/domain/forestry_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/soils/domain/soils_repository.dart';
@@ -37,6 +38,7 @@ final class AppRunner {
 
     final database = await DatabaseHelper.instance.database;
     final subjectsRepository = SubjectsRepository(database: database);
+    final forestryRepository = ForestryRepository(database: database);
     final probaInfoRepository = ProbaInfoRepository(database: database);
     final treeInformationRepository = TreeInformationRepository(
       database: database,
@@ -64,6 +66,7 @@ final class AppRunner {
       soilsBloc: SoilsBloc(),
       taxationCharacteristicBloc: taxationCharacteristicBloc,
       subjectsRepository: subjectsRepository,
+      forestryRepository: forestryRepository,
       probaInfoRepository: probaInfoRepository,
       treeInformationRepository: treeInformationRepository,
       deadwoodRepository: deadwoodRepository,
