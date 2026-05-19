@@ -17,8 +17,8 @@ final class TreeInformationRecord {
   final int probaInfoId;
   final String? woodQuality;
   final String? species;
-  final int d1;
-  final int d2;
+  final double d1;
+  final double d2;
   final int? rightColumnNumber;
   final int? treeAge;
   final double? treeHeight;
@@ -36,7 +36,7 @@ final class TreeInformationRepository {
 
   Future<List<TreeInformationRecord>> getLatestByProbaInfoId(
     int probaInfoId, {
-    int limit = 4,
+    int? limit,
   }) async {
     final rows = await _database.query(
       'tree_information',
@@ -63,8 +63,8 @@ final class TreeInformationRepository {
       probaInfoId: (row['proba_info_id'] as int?)!,
       woodQuality: row['wood_quality']?.toString(),
       species: row['species']?.toString(),
-      d1: (row['d1'] as int?)!,
-      d2: (row['d2'] as int?)!,
+      d1: (row['d1'] as num?)!.toDouble(),
+      d2: (row['d2'] as num?)!.toDouble(),
       rightColumnNumber: row['right_column_number'] as int?,
       treeAge: row['tree_age'] as int?,
       treeHeight: (row['tree_height'] as num?)?.toDouble(),

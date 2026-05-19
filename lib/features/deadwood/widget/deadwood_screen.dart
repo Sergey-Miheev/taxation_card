@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
@@ -32,6 +33,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   String? _selectedDecayStage = _decayStageOptions.first;
   int? _selectedDiameterNumber;
   int? _selectedMillimeterNumber;
+  bool _isSelectedDiameterManual = false;
   int? _loadedProbaInfoId;
 
   @override
@@ -188,117 +190,40 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                 const SizedBox(height: 16),
                 Text('Средний диаметр', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 10,
-                      child: Container(
-                        padding: const EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
+                DiameterPicker(
+                  selections: _selectedDiameterNumber == null
+                      ? const []
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedDiameterNumber!,
+                            millimeter: _selectedMillimeterNumber ?? 0,
+                            isManual: _isSelectedDiameterManual,
                           ),
-                        ),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 10,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                              ),
-                          itemCount: 100,
-                          itemBuilder: (context, index) {
-                            final number = index + 1;
-                            final isSelected =
-                                _selectedDiameterNumber == number;
-
-                            return GestureDetector(
-                              onTap: () => _toggleDiameterNumber(number),
-                              child: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '$number',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontSize: 12,
-                                    color: isSelected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurfaceVariant,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 1,
-                              mainAxisSpacing: 4,
-                            ),
-                        itemCount: 10,
-                        itemBuilder: (context, index) {
-                          final number = 9 - index;
-                          final isSelected =
-                              _selectedMillimeterNumber == number;
-
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedMillimeterNumber = isSelected
-                                    ? null
-                                    : number;
-                              });
-                              _notifyDiameterChanged();
-                            },
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.secondary
-                                    : theme.colorScheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '$number',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  color: isSelected
-                                      ? theme.colorScheme.onSecondary
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                        ],
+                  onDiameterSelected: _toggleDiameterNumber,
+                  onMillimeterSelected: (number) {
+                    setState(() {
+                      _selectedMillimeterNumber = number;
+                    });
+                    _notifyDiameterChanged();
+                  },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedDiameterNumber = selection.diameter;
+                      _selectedMillimeterNumber = selection.millimeter;
+                      _isSelectedDiameterManual = true;
+                    });
+                    _notifyDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedDiameterNumber = null;
+                      _selectedMillimeterNumber = null;
+                      _isSelectedDiameterManual = false;
+                    });
+                    _notifyDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -515,6 +440,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       _selectedDiameterNumber = _selectedDiameterNumber == number
           ? null
           : number;
+      _isSelectedDiameterManual = false;
     });
     _notifyDiameterChanged();
   }
@@ -523,7 +449,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     context.read<DeadwoodBloc>().add(
       DeadwoodEvent.diameterChanged(
         diameter: _selectedDiameterNumber,
-        millimeter: _selectedMillimeterNumber,
+        millimeter: _selectedDiameterNumber == null
+            ? null
+            : _selectedMillimeterNumber ?? 0,
       ),
     );
   }
@@ -581,7 +509,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       species: _selectedSpecies!,
       length: _parseRequiredDouble(_lengthController.text),
       diameter: _selectedDiameterNumber!,
-      millimeter: _selectedMillimeterNumber,
+      millimeter: _selectedMillimeterNumber ?? 0,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
       decayStage: _selectedDecayStage!,

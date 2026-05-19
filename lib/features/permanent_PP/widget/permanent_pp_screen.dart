@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
@@ -23,8 +24,8 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   String? _selectedWoodQuality = 'Деловая';
   final List<String> _dynamicElements = [];
   String? _selectedDynamicElement;
-  final List<int> _selectedGridNumbers = [];
-  int? _selectedRightColumnNumber;
+  final List<DiameterPickerSelection> _selectedDiameters = [];
+  int? _activeDiameterIndex;
   int? _loadedProbaInfoId;
 
   @override
@@ -128,176 +129,93 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ..._dynamicElements.map((element) {
-                        final isSelected = _selectedDynamicElement == element;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InputChip(
-                            label: Text(element),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedDynamicElement = selected
-                                    ? element
-                                    : null;
-                              });
-                            },
-                            onDeleted: () {
-                              setState(() {
-                                _dynamicElements.remove(element);
-                                if (_selectedDynamicElement == element) {
-                                  _selectedDynamicElement = null;
-                                }
-                              });
-                            },
-                            showCheckmark: false,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: theme
-                                .colorScheme
-                                .secondaryContainer
-                                .withValues(alpha: 0.5),
+                FormField<String>(
+                  validator: (_) {
+                    final species = _selectedDynamicElement?.trim();
+                    if (species == null || species.isEmpty) {
+                      return 'Выберите породу';
+                    }
+                    return null;
+                  },
+                  builder: (field) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              ..._dynamicElements.map((element) {
+                                final isSelected =
+                                    _selectedDynamicElement == element;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: InputChip(
+                                    label: Text(element),
+                                    selected: isSelected,
+                                    onSelected: (selected) {
+                                      final value = selected ? element : null;
+                                      setState(() {
+                                        _selectedDynamicElement = value;
+                                      });
+                                      field.didChange(value);
+                                    },
+                                    onDeleted: () {
+                                      setState(() {
+                                        _dynamicElements.remove(element);
+                                        if (_selectedDynamicElement ==
+                                            element) {
+                                          _selectedDynamicElement = null;
+                                        }
+                                      });
+                                      field.didChange(_selectedDynamicElement);
+                                    },
+                                    showCheckmark: false,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    backgroundColor: theme
+                                        .colorScheme
+                                        .secondaryContainer
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                );
+                              }),
+                              IconButton.filledTonal(
+                                onPressed: _showSpeciesDialog,
+                                icon: const Icon(Icons.add, size: 20),
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                              ),
+                            ],
                           ),
-                        );
-                      }),
-                      IconButton.filledTonal(
-                        onPressed: _showSpeciesDialog,
-                        icon: const Icon(Icons.add, size: 20),
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
                         ),
-                      ),
-                    ],
-                  ),
+                        if (field.hasError)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8, left: 12),
+                            child: Text(
+                              field.errorText!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 Text('Выберите диаметр', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 10,
-                      child: Container(
-                        padding: const EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                          ),
-                        ),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 10,
-                                mainAxisSpacing: 4,
-                                crossAxisSpacing: 4,
-                              ),
-                          itemCount: 100,
-                          itemBuilder: (context, index) {
-                            final number = index + 1;
-                            final isSelected = _selectedGridNumbers.contains(
-                              number,
-                            );
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    _selectedGridNumbers.remove(number);
-                                  } else if (_selectedGridNumbers.length < 2) {
-                                    _selectedGridNumbers.add(number);
-                                  }
-                                });
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '$number',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontSize: 12,
-                                    color: isSelected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurfaceVariant,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 1,
-                              mainAxisSpacing: 4,
-                            ),
-                        itemCount: 10,
-                        itemBuilder: (context, index) {
-                          final number = 9 - index;
-                          final isSelected =
-                              _selectedRightColumnNumber == number;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedRightColumnNumber = null;
-                                } else {
-                                  _selectedRightColumnNumber = number;
-                                }
-                              });
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.secondary
-                                    : theme.colorScheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '$number',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  color: isSelected
-                                      ? theme.colorScheme.onSecondary
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                DiameterPicker(
+                  selections: _selectedDiameters,
+                  activeSelectionIndex: _activeDiameterIndex,
+                  onDiameterSelected: _onDiameterSelected,
+                  onMillimeterSelected: _onMillimeterSelected,
+                  onManualSelectionSubmitted: _onManualDiameterSubmitted,
+                  onSelectionRemoved: _onDiameterRemoved,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -456,14 +374,18 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
 
   String _formatRecordSubtitle(TreeInformationRecord record) {
     final parts = <String>[
-      'D1: ${record.d1}',
-      'D2: ${record.d2}',
+      'D1: ${_formatDiameterValue(record.d1)}',
+      'D2: ${_formatDiameterValue(record.d2)}',
       if (record.rightColumnNumber != null) 'ряд: ${record.rightColumnNumber}',
       if (record.treeAge != null) 'возраст: ${record.treeAge}',
       if (record.treeHeight != null) 'высота: ${record.treeHeight}',
     ];
 
     return parts.join(' • ');
+  }
+
+  String _formatDiameterValue(double value) {
+    return value.toStringAsFixed(1).replaceAll('.', ',');
   }
 
   TextFormField _buildNumberField({
@@ -523,6 +445,67 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     return null;
   }
 
+  void _onDiameterSelected(int number) {
+    final selectedIndex = _selectedDiameters.indexWhere(
+      (selection) => !selection.isManual && selection.diameter == number,
+    );
+
+    setState(() {
+      if (selectedIndex != -1) {
+        if (_activeDiameterIndex == selectedIndex) {
+          _selectedDiameters.removeAt(selectedIndex);
+          _activeDiameterIndex = _selectedDiameters.isEmpty
+              ? null
+              : selectedIndex.clamp(0, _selectedDiameters.length - 1);
+        } else {
+          _activeDiameterIndex = selectedIndex;
+        }
+        return;
+      }
+
+      if (_selectedDiameters.length < 2) {
+        _selectedDiameters.add(DiameterPickerSelection(diameter: number));
+        _activeDiameterIndex = _selectedDiameters.length - 1;
+      }
+    });
+  }
+
+  void _onMillimeterSelected(int number) {
+    final activeIndex = _activeDiameterIndex;
+    if (activeIndex == null || activeIndex >= _selectedDiameters.length) {
+      return;
+    }
+
+    final activeSelection = _selectedDiameters[activeIndex];
+    setState(() {
+      _selectedDiameters[activeIndex] = DiameterPickerSelection(
+        diameter: activeSelection.diameter,
+        millimeter: number,
+        isManual: activeSelection.isManual,
+      );
+    });
+  }
+
+  void _onManualDiameterSubmitted(DiameterPickerSelection selection) {
+    setState(() {
+      _selectedDiameters.add(selection);
+      _activeDiameterIndex = _selectedDiameters.length - 1;
+    });
+  }
+
+  void _onDiameterRemoved(int index) {
+    if (index < 0 || index >= _selectedDiameters.length) {
+      return;
+    }
+
+    setState(() {
+      _selectedDiameters.removeAt(index);
+      _activeDiameterIndex = _selectedDiameters.isEmpty
+          ? null
+          : index.clamp(0, _selectedDiameters.length - 1);
+    });
+  }
+
   void _onSavePressed() {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) {
@@ -540,9 +523,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       return;
     }
 
-    if (_selectedGridNumbers.length != 2) {
+    if (_selectedDiameters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Выберите два значения диаметра.')),
+        const SnackBar(content: Text('Выберите значение диаметра.')),
       );
       return;
     }
@@ -551,9 +534,8 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       probaInfoId: selectedProbaInfoId,
       woodQuality: _selectedWoodQuality,
       species: _selectedDynamicElement,
-      d1: _selectedGridNumbers[0],
-      d2: _selectedGridNumbers[1],
-      rightColumnNumber: _selectedRightColumnNumber,
+      d1: _selectedDiameters[0].value,
+      d2: _selectedDiameters.length > 1 ? _selectedDiameters[1].value : 0,
       treeAge: _parseOptionalInt(_treeAgeController.text),
       treeHeight: _parseOptionalDouble(_treeHeightController.text),
     );
@@ -592,6 +574,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
         }
         _selectedDynamicElement = result;
       });
+      _formKey.currentState?.validate();
     }
   }
 }

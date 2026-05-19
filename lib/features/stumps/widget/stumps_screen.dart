@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
@@ -34,6 +35,8 @@ final class _StumpsScreenState extends State<StumpsScreen>
   int? _selectedStumpHeightMillimeter;
   int? _selectedRootCollarDiameter;
   int? _selectedRootCollarMillimeter;
+  bool _isSelectedStumpHeightDiameterManual = false;
+  bool _isSelectedRootCollarDiameterManual = false;
   int? _loadedProbaInfoId;
 
   @override
@@ -187,19 +190,40 @@ final class _StumpsScreenState extends State<StumpsScreen>
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
-                _DiameterPicker(
-                  selectedDiameter: _selectedStumpHeightDiameter,
-                  selectedMillimeter: _selectedStumpHeightMillimeter,
-                  onDiameterChanged: _toggleStumpHeightDiameter,
-                  onMillimeterChanged: (number) {
+                DiameterPicker(
+                  selections: _selectedStumpHeightDiameter == null
+                      ? const []
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedStumpHeightDiameter!,
+                            millimeter: _selectedStumpHeightMillimeter ?? 0,
+                            isManual: _isSelectedStumpHeightDiameterManual,
+                          ),
+                        ],
+                  onDiameterSelected: _toggleStumpHeightDiameter,
+                  onMillimeterSelected: (number) {
                     setState(() {
-                      _selectedStumpHeightMillimeter =
-                          _selectedStumpHeightMillimeter == number
-                          ? null
-                          : number;
+                      _selectedStumpHeightMillimeter = number;
                     });
                     _notifyStumpHeightDiameterChanged();
                   },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedStumpHeightDiameter = selection.diameter;
+                      _selectedStumpHeightMillimeter = selection.millimeter;
+                      _isSelectedStumpHeightDiameterManual = true;
+                    });
+                    _notifyStumpHeightDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedStumpHeightDiameter = null;
+                      _selectedStumpHeightMillimeter = null;
+                      _isSelectedStumpHeightDiameterManual = false;
+                    });
+                    _notifyStumpHeightDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -207,19 +231,40 @@ final class _StumpsScreenState extends State<StumpsScreen>
                   style: theme.textTheme.labelLarge,
                 ),
                 const SizedBox(height: 8),
-                _DiameterPicker(
-                  selectedDiameter: _selectedRootCollarDiameter,
-                  selectedMillimeter: _selectedRootCollarMillimeter,
-                  onDiameterChanged: _toggleRootCollarDiameter,
-                  onMillimeterChanged: (number) {
+                DiameterPicker(
+                  selections: _selectedRootCollarDiameter == null
+                      ? const []
+                      : [
+                          DiameterPickerSelection(
+                            diameter: _selectedRootCollarDiameter!,
+                            millimeter: _selectedRootCollarMillimeter ?? 0,
+                            isManual: _isSelectedRootCollarDiameterManual,
+                          ),
+                        ],
+                  onDiameterSelected: _toggleRootCollarDiameter,
+                  onMillimeterSelected: (number) {
                     setState(() {
-                      _selectedRootCollarMillimeter =
-                          _selectedRootCollarMillimeter == number
-                          ? null
-                          : number;
+                      _selectedRootCollarMillimeter = number;
                     });
                     _notifyRootCollarDiameterChanged();
                   },
+                  onManualSelectionSubmitted: (selection) {
+                    setState(() {
+                      _selectedRootCollarDiameter = selection.diameter;
+                      _selectedRootCollarMillimeter = selection.millimeter;
+                      _isSelectedRootCollarDiameterManual = true;
+                    });
+                    _notifyRootCollarDiameterChanged();
+                  },
+                  onSelectionRemoved: (_) {
+                    setState(() {
+                      _selectedRootCollarDiameter = null;
+                      _selectedRootCollarMillimeter = null;
+                      _isSelectedRootCollarDiameterManual = false;
+                    });
+                    _notifyRootCollarDiameterChanged();
+                  },
+                  maxSelections: 1,
                 ),
                 const SizedBox(height: 16),
                 _buildNumberField(
@@ -440,6 +485,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
       _selectedStumpHeightDiameter = _selectedStumpHeightDiameter == number
           ? null
           : number;
+      _isSelectedStumpHeightDiameterManual = false;
     });
     _notifyStumpHeightDiameterChanged();
   }
@@ -448,7 +494,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
     context.read<StumpsBloc>().add(
       StumpsEvent.stumpHeightDiameterChanged(
         diameter: _selectedStumpHeightDiameter,
-        millimeter: _selectedStumpHeightMillimeter,
+        millimeter: _selectedStumpHeightDiameter == null
+            ? null
+            : _selectedStumpHeightMillimeter ?? 0,
       ),
     );
   }
@@ -458,6 +506,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
       _selectedRootCollarDiameter = _selectedRootCollarDiameter == number
           ? null
           : number;
+      _isSelectedRootCollarDiameterManual = false;
     });
     _notifyRootCollarDiameterChanged();
   }
@@ -466,7 +515,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
     context.read<StumpsBloc>().add(
       StumpsEvent.rootCollarDiameterChanged(
         diameter: _selectedRootCollarDiameter,
-        millimeter: _selectedRootCollarMillimeter,
+        millimeter: _selectedRootCollarDiameter == null
+            ? null
+            : _selectedRootCollarMillimeter ?? 0,
       ),
     );
   }
@@ -533,9 +584,9 @@ final class _StumpsScreenState extends State<StumpsScreen>
       species: _selectedSpecies!,
       stumpHeight: _parseRequiredDouble(_stumpHeightController.text),
       stumpHeightDiameter: _selectedStumpHeightDiameter!,
-      stumpHeightMillimeter: _selectedStumpHeightMillimeter,
+      stumpHeightMillimeter: _selectedStumpHeightMillimeter ?? 0,
       rootCollarDiameter: _selectedRootCollarDiameter!,
-      rootCollarMillimeter: _selectedRootCollarMillimeter,
+      rootCollarMillimeter: _selectedRootCollarMillimeter ?? 0,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
       decayStage: _selectedDecayStage!,
@@ -621,123 +672,5 @@ final class _StumpsScreenState extends State<StumpsScreen>
       });
       context.read<StumpsBloc>().add(StumpsEvent.speciesChanged(result));
     }
-  }
-}
-
-final class _DiameterPicker extends StatelessWidget {
-  const _DiameterPicker({
-    required this.selectedDiameter,
-    required this.selectedMillimeter,
-    required this.onDiameterChanged,
-    required this.onMillimeterChanged,
-  });
-
-  final int? selectedDiameter;
-  final int? selectedMillimeter;
-  final ValueChanged<int> onDiameterChanged;
-  final ValueChanged<int> onMillimeterChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 10,
-          child: Container(
-            padding: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-            ),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 10,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-              ),
-              itemCount: 100,
-              itemBuilder: (context, index) {
-                final number = index + 1;
-                final isSelected = selectedDiameter == number;
-
-                return GestureDetector(
-                  onTap: () => onDiameterChanged(number),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '$number',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        color: isSelected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1,
-              mainAxisSpacing: 4,
-            ),
-            itemCount: 10,
-            itemBuilder: (context, index) {
-              final number = 9 - index;
-              final isSelected = selectedMillimeter == number;
-
-              return GestureDetector(
-                onTap: () => onMillimeterChanged(number),
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? theme.colorScheme.secondary
-                        : theme.colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
-                          ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '$number',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 16,
-                      color: isSelected
-                          ? theme.colorScheme.onSecondary
-                          : theme.colorScheme.onSurfaceVariant,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 }
