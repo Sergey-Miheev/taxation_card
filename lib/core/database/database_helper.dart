@@ -173,7 +173,15 @@ CREATE TABLE IF NOT EXISTS proba_info (
   quarter INTEGER NOT NULL,
   allotment INTEGER NOT NULL,
   sample_plot_number INTEGER NOT NULL,
-  sample_plot_area REAL NOT NULL
+  sample_plot_area REAL NOT NULL,
+  x1 TEXT,
+  y1 TEXT,
+  x2 TEXT,
+  y2 TEXT,
+  x3 TEXT,
+  y3 TEXT,
+  x4 TEXT,
+  y4 TEXT
 )
 ''');
   }

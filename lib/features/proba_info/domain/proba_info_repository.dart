@@ -19,6 +19,14 @@ final class ProbaInfoRecord {
     this.livingGroundCover,
     this.undergrowth,
     this.understory,
+    this.x1,
+    this.y1,
+    this.x2,
+    this.y2,
+    this.x3,
+    this.y3,
+    this.x4,
+    this.y4,
   });
 
   final int? id;
@@ -34,6 +42,14 @@ final class ProbaInfoRecord {
   final String? livingGroundCover;
   final String? undergrowth;
   final String? understory;
+  final String? x1;
+  final String? y1;
+  final String? x2;
+  final String? y2;
+  final String? x3;
+  final String? y3;
+  final String? x4;
+  final String? y4;
   final int quarter;
   final int allotment;
   final int samplePlotNumber;
@@ -52,6 +68,21 @@ final class ProbaInfoRepository {
     return rows.map(_fromRow).toList();
   }
 
+  Future<ProbaInfoRecord?> getById(int id) async {
+    final rows = await _database.query(
+      'proba_info',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    return _fromRow(rows.single);
+  }
+
   Future<int> insert(ProbaInfoRecord record) {
     return _database.insert('proba_info', _toRow(record));
   }
@@ -62,6 +93,34 @@ final class ProbaInfoRepository {
       _toRow(record),
       where: 'id = ?',
       whereArgs: [record.id],
+    );
+  }
+
+  Future<int> updateCoordinates({
+    required int id,
+    required String x1,
+    required String y1,
+    required String x2,
+    required String y2,
+    required String x3,
+    required String y3,
+    required String x4,
+    required String y4,
+  }) {
+    return _database.update(
+      'proba_info',
+      {
+        'x1': x1,
+        'y1': y1,
+        'x2': x2,
+        'y2': y2,
+        'x3': x3,
+        'y3': y3,
+        'x4': x4,
+        'y4': y4,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 
@@ -80,6 +139,14 @@ final class ProbaInfoRepository {
       livingGroundCover: row['living_ground_cover'] as String?,
       undergrowth: row['undergrowth'] as String?,
       understory: row['understory'] as String?,
+      x1: row['x1'] as String?,
+      y1: row['y1'] as String?,
+      x2: row['x2'] as String?,
+      y2: row['y2'] as String?,
+      x3: row['x3'] as String?,
+      y3: row['y3'] as String?,
+      x4: row['x4'] as String?,
+      y4: row['y4'] as String?,
       quarter: row['quarter']! as int,
       allotment: row['allotment']! as int,
       samplePlotNumber: row['sample_plot_number']! as int,
@@ -101,6 +168,14 @@ final class ProbaInfoRepository {
       'living_ground_cover': record.livingGroundCover,
       'undergrowth': record.undergrowth,
       'understory': record.understory,
+      'x1': record.x1,
+      'y1': record.y1,
+      'x2': record.x2,
+      'y2': record.y2,
+      'x3': record.x3,
+      'y3': record.y3,
+      'x4': record.x4,
+      'y4': record.y4,
       'quarter': record.quarter,
       'allotment': record.allotment,
       'sample_plot_number': record.samplePlotNumber,

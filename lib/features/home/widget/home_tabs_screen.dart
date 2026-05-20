@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:taxation_card/features/coordinates/widget/coordinates_screen.dart';
 import 'package:taxation_card/features/deadwood/widget/deadwood_screen.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/eyes_taxation/widget/eyes_taxation_screen.dart';
@@ -61,6 +62,13 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
           title: const Text('Таксационная карточка'),
           actions: [
             IconButton(
+              onPressed: selectedProbaInfoId == null
+                  ? null
+                  : () => _openCoordinatesScreen(selectedProbaInfoId),
+              icon: const Icon(Icons.pin_drop_outlined),
+              tooltip: 'Координаты',
+            ),
+            IconButton(
               onPressed: _isExporting || selectedProbaInfoId == null
                   ? null
                   : () => _showExportDialog(selectedProbaInfoId),
@@ -95,6 +103,14 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
             SoilsScreen(),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openCoordinatesScreen(int probaInfoId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => CoordinatesScreen(probaInfoId: probaInfoId),
       ),
     );
   }
