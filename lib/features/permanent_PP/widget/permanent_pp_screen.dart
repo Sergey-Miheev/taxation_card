@@ -361,19 +361,24 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   String _formatRecordTitle(TreeInformationRecord record) {
     final species = record.species?.trim();
     final woodQuality = record.woodQuality?.trim();
+    final treeNumber = record.treeNumber;
 
-    if (species != null && species.isNotEmpty) {
-      return species;
+    if (treeNumber != null && species != null && species.isNotEmpty) {
+      return 'Дерево №$treeNumber • $species';
+    }
+    if (treeNumber != null) {
+      return 'Дерево №$treeNumber';
     }
     if (woodQuality != null && woodQuality.isNotEmpty) {
       return woodQuality;
     }
 
-    return 'Запись #${record.id ?? '-'}';
+    return 'Дерево №${record.treeNumber ?? '-'}';
   }
 
   String _formatRecordSubtitle(TreeInformationRecord record) {
     final parts = <String>[
+      if (record.treeNumber != null) '№ дерева: ${record.treeNumber}',
       'D1: ${_formatDiameterValue(record.d1)}',
       'D2: ${_formatDiameterValue(record.d2)}',
       if (record.rightColumnNumber != null) 'ряд: ${record.rightColumnNumber}',

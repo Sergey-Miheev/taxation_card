@@ -6,6 +6,7 @@ final class TreeInformationRecord {
     required this.d1,
     required this.d2,
     this.id,
+    this.treeNumber,
     this.woodQuality,
     this.species,
     this.rightColumnNumber,
@@ -15,6 +16,7 @@ final class TreeInformationRecord {
 
   final int? id;
   final int probaInfoId;
+  final int? treeNumber;
   final String? woodQuality;
   final String? species;
   final double d1;
@@ -30,8 +32,14 @@ final class TreeInformationRepository {
 
   final Database _database;
 
-  Future<int> insert(TreeInformationRecord record) {
-    return _database.insert('tree_information', _toRow(record));
+  Future<int> insert(TreeInformationRecord record) async {
+    final treeNumber =
+        record.treeNumber ?? await _nextTreeNumber(record.probaInfoId);
+
+    return _database.insert(
+      'tree_information',
+      _toRow(record, treeNumber: treeNumber),
+    );
   }
 
   Future<List<TreeInformationRecord>> getLatestByProbaInfoId(
@@ -42,7 +50,7 @@ final class TreeInformationRepository {
       'tree_information',
       where: 'proba_info_id = ?',
       whereArgs: [probaInfoId],
-      orderBy: 'id DESC',
+      orderBy: 'tree_number DESC',
       limit: limit,
     );
 
@@ -61,6 +69,7 @@ final class TreeInformationRepository {
     return TreeInformationRecord(
       id: row['id'] as int?,
       probaInfoId: (row['proba_info_id'] as int?)!,
+      treeNumber: row['tree_number'] as int?,
       woodQuality: row['wood_quality']?.toString(),
       species: row['species']?.toString(),
       d1: (row['d1'] as num?)!.toDouble(),
@@ -71,9 +80,23 @@ final class TreeInformationRepository {
     );
   }
 
-  Map<String, Object?> _toRow(TreeInformationRecord record) {
+  Future<int> _nextTreeNumber(int probaInfoId) async {
+    final result = await _database.rawQuery(
+      'SELECT MAX(tree_number) AS max_tree_number FROM tree_information WHERE proba_info_id = ?',
+      [probaInfoId],
+    );
+    final maxTreeNumber = result.single['max_tree_number'] as int?;
+
+    return (maxTreeNumber ?? 0) + 1;
+  }
+
+  Map<String, Object?> _toRow(
+    TreeInformationRecord record, {
+    required int treeNumber,
+  }) {
     return {
       'proba_info_id': record.probaInfoId,
+      'tree_number': treeNumber,
       'wood_quality': record.woodQuality,
       'species': record.species,
       'd1': record.d1,

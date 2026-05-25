@@ -14,12 +14,18 @@ final class UnderstoryScreen extends StatefulWidget {
   State<UnderstoryScreen> createState() => _UnderstoryScreenState();
 }
 
+enum _CountEditMode { increment, decrement }
+
 final class _UnderstoryScreenState extends State<UnderstoryScreen>
     with AutomaticKeepAliveClientMixin {
   final List<_UnderstoryTableRow> _rows = [];
   int? _selectedIndex;
   int? _loadedProbaInfoId;
+  int? _plotCount;
+  double? _totalPlotArea;
+  _CountEditMode _countEditMode = _CountEditMode.increment;
   bool _isLoading = false;
+  bool _showPlotSetup = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,75 +52,95 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
                       : 'Заполните показатели мелкого, среднего и крупного подлеска.',
                   style: theme.textTheme.bodyLarge,
                 ),
+                const SizedBox(height: 8),
+                _TotalPlotAreaLabel(totalPlotArea: _totalPlotArea),
                 const SizedBox(height: 16),
                 if (_isLoading) ...[
                   const LinearProgressIndicator(),
                   const SizedBox(height: 12),
                 ],
-                Expanded(
-                  child: _ScrollableTableCard(
-                    child: _UnderstoryEditableTable(
-                      rows: _rows,
-                      selectedIndex: _selectedIndex,
-                      onRowSelected: (index) {
-                        setState(() => _selectedIndex = index);
-                      },
-                      onRowFocusLost: _updateRow,
+                if (_showPlotSetup)
+                  Expanded(
+                    child: _UnderstoryPlotSetupForm(
+                      isSaving: _isLoading,
+                      onSave: (plotCount, singlePlotArea) => _savePlotSetup(
+                        selectedProbaInfoId,
+                        plotCount,
+                        singlePlotArea,
+                      ),
+                    ),
+                  )
+                else ...[
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ScrollableTableCard(
+                            child: _UnderstoryEditableTable(
+                              rows: _rows,
+                              selectedIndex: _selectedIndex,
+                              editMode: _countEditMode,
+                              onRowSelected: (index) {
+                                setState(() => _selectedIndex = index);
+                              },
+                              onRowChanged: _updateRow,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 16,
+                          bottom: 16,
+                          child: _CountModeButtons(
+                            selectedMode: _countEditMode,
+                            onModeChanged: (mode) {
+                              setState(() => _countEditMode = mode);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: _ScrollableTableCard(
-                    child: _LargeUnderstoryEditableTable(
-                      rows: _rows,
-                      selectedIndex: _selectedIndex,
-                      onRowSelected: (index) {
-                        setState(() => _selectedIndex = index);
-                      },
-                      onRowFocusLost: _updateRow,
-                    ),
-                  ),
-                ),
+                ],
               ],
             ),
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: selectedProbaInfoId == null || _isLoading
-                        ? null
-                        : () => _addRow(selectedProbaInfoId),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Добавить'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+        if (!_showPlotSetup)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: selectedProbaInfoId == null || _isLoading
+                          ? null
+                          : () => _openAddDialog(selectedProbaInfoId),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Добавить запись'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _selectedIndex == null || _isLoading
-                        ? null
-                        : _deleteRow,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Удалить'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _selectedIndex == null || _isLoading
+                          ? null
+                          : _deleteRow,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Удалить запись'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -122,9 +148,33 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
   @override
   bool get wantKeepAlive => true;
 
-  Future<void> _addRow(int probaInfoId) async {
+  Future<void> _openAddDialog(int probaInfoId) async {
+    final plotCount = _plotCount;
+    if (plotCount == null || plotCount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Сначала заполните количество учетных площадок.'),
+        ),
+      );
+      return;
+    }
+
+    final draft = await showDialog<_UnderstoryRecordDraft>(
+      context: context,
+      builder: (context) => _UnderstoryRecordDialog(plotCount: plotCount),
+    );
+    if (draft == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+
     final repository = DependenciesScope.of(context).understoryRepository;
-    final row = _UnderstoryTableRow.empty(probaInfoId: probaInfoId);
+    final row = _UnderstoryTableRow.fromDraft(
+      probaInfoId: probaInfoId,
+      draft: draft,
+    );
 
     try {
       final id = await repository.insert(row.toRecord());
@@ -200,42 +250,103 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
 
     if (selectedProbaInfoId == null) {
       _rows.clear();
+      _plotCount = null;
+      _totalPlotArea = null;
       _isLoading = false;
+      _showPlotSetup = false;
       return;
     }
 
     final repository = DependenciesScope.of(context).understoryRepository;
     _rows.clear();
     _isLoading = true;
+    _showPlotSetup = false;
 
     unawaited(
-      repository
-          .getByProbaInfoId(selectedProbaInfoId)
-          .then((records) {
-            if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
-              return;
-            }
+      () async {
+        final dependencies = DependenciesScope.of(context);
+        final records = await repository.getByProbaInfoId(selectedProbaInfoId);
+        final probaInfo = await dependencies.probaInfoRepository.getById(
+          selectedProbaInfoId,
+        );
 
-            setState(() {
-              _rows
-                ..clear()
-                ..addAll(records.map(_UnderstoryTableRow.fromRecord));
-              _isLoading = false;
-            });
-          })
-          .catchError((Object _) {
-            if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
-              return;
-            }
+        if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
+          return;
+        }
 
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Не удалось загрузить записи подлеска.'),
-              ),
-            );
-          }),
+        setState(() {
+          _rows
+            ..clear()
+            ..addAll(records.map(_UnderstoryTableRow.fromRecord));
+          _plotCount = probaInfo?.understoryPlotCount;
+          _totalPlotArea = probaInfo?.understoryPlotArea;
+          _showPlotSetup =
+              records.isEmpty &&
+              (probaInfo == null ||
+                  probaInfo.understoryPlotCount <= 0 ||
+                  probaInfo.understoryPlotArea <= 0);
+          _isLoading = false;
+        });
+      }().catchError((Object _) {
+        if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
+          return;
+        }
+
+        setState(() {
+          _isLoading = false;
+          _showPlotSetup = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось загрузить записи подлеска.'),
+          ),
+        );
+      }),
     );
+  }
+
+  Future<void> _savePlotSetup(
+    int? selectedProbaInfoId,
+    int plotCount,
+    double singlePlotArea,
+  ) async {
+    if (selectedProbaInfoId == null || _isLoading) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await DependenciesScope.of(
+        context,
+      ).probaInfoRepository.updateUnderstoryPlotInfo(
+        id: selectedProbaInfoId,
+        plotCount: plotCount,
+        plotArea: plotCount * singlePlotArea,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _plotCount = plotCount;
+        _totalPlotArea = plotCount * singlePlotArea;
+        _showPlotSetup = false;
+        _isLoading = false;
+      });
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить параметры площадок подлеска.'),
+        ),
+      );
+    }
   }
 
   Future<void> _updateRow(_UnderstoryTableRow row) async {
@@ -257,6 +368,561 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
         const SnackBar(content: Text('Не удалось обновить запись подлеска.')),
       );
     }
+  }
+}
+
+final class _UnderstoryPlotSetupForm extends StatefulWidget {
+  const _UnderstoryPlotSetupForm({
+    required this.isSaving,
+    required this.onSave,
+  });
+
+  final bool isSaving;
+  final void Function(int plotCount, double singlePlotArea) onSave;
+
+  @override
+  State<_UnderstoryPlotSetupForm> createState() =>
+      _UnderstoryPlotSetupFormState();
+}
+
+final class _UnderstoryPlotSetupFormState
+    extends State<_UnderstoryPlotSetupForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _plotCountController = TextEditingController();
+  final _singlePlotAreaController = TextEditingController();
+
+  @override
+  void dispose() {
+    _plotCountController.dispose();
+    _singlePlotAreaController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Учетные площадки подлеска',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _plotCountController,
+                    enabled: !widget.isSaving,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Количество учетных площадок',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: _validatePositiveInt,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _singlePlotAreaController,
+                    enabled: !widget.isSaving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'Площадь одной учетной площадки',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: _validatePositiveNumber,
+                    onFieldSubmitted: (_) => _onSavePressed(),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: widget.isSaving ? null : _onSavePressed,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: widget.isSaving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Сохранить'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    widget.onSave(
+      int.parse(_plotCountController.text.trim()),
+      double.parse(_normalizeNumber(_singlePlotAreaController.text)),
+    );
+  }
+
+  String? _validatePositiveInt(String? value) {
+    final parsedValue = int.tryParse(value?.trim() ?? '');
+    if (parsedValue == null) {
+      return 'Введите целое число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String? _validatePositiveNumber(String? value) {
+    final parsedValue = double.tryParse(_normalizeNumber(value ?? ''));
+    if (parsedValue == null) {
+      return 'Введите корректное число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String _normalizeNumber(String value) {
+    return value.trim().replaceAll(',', '.');
+  }
+}
+
+final class _TotalPlotAreaLabel extends StatelessWidget {
+  const _TotalPlotAreaLabel({required this.totalPlotArea});
+
+  final double? totalPlotArea;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final area = totalPlotArea;
+    final text = area == null
+        ? 'Общая площадь подлеска: -'
+        : 'Общая площадь подлеска: ${_formatDouble(area)}';
+
+    return Text(
+      text,
+      style: theme.textTheme.titleSmall?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  String _formatDouble(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toString();
+  }
+}
+
+final class _CountModeButtons extends StatelessWidget {
+  const _CountModeButtons({
+    required this.selectedMode,
+    required this.onModeChanged,
+  });
+
+  final _CountEditMode selectedMode;
+  final ValueChanged<_CountEditMode> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CountModeButton(
+              icon: Icons.add,
+              tooltip: 'Режим увеличения',
+              isSelected: selectedMode == _CountEditMode.increment,
+              onPressed: () => onModeChanged(_CountEditMode.increment),
+            ),
+            const SizedBox(width: 8),
+            _CountModeButton(
+              icon: Icons.remove,
+              tooltip: 'Режим уменьшения',
+              isSelected: selectedMode == _CountEditMode.decrement,
+              onPressed: () => onModeChanged(_CountEditMode.decrement),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _CountModeButton extends StatelessWidget {
+  const _CountModeButton({
+    required this.icon,
+    required this.tooltip,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return isSelected
+        ? FloatingActionButton(
+            heroTag: 'understory-$tooltip',
+            tooltip: tooltip,
+            onPressed: onPressed,
+            child: Icon(icon),
+          )
+        : FloatingActionButton(
+            heroTag: 'understory-$tooltip',
+            tooltip: tooltip,
+            onPressed: onPressed,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            child: Icon(icon),
+          );
+  }
+}
+
+final class _UnderstoryRecordDraft {
+  const _UnderstoryRecordDraft({
+    required this.plotNumber,
+    required this.species,
+    required this.modelAge,
+    required this.modelDiameter,
+    required this.modelHeight,
+    required this.largeModelAge,
+    required this.largeModelDiameter,
+    required this.largeModelHeight,
+  });
+
+  final int plotNumber;
+  final String species;
+  final int modelAge;
+  final double modelDiameter;
+  final double modelHeight;
+  final int largeModelAge;
+  final double largeModelDiameter;
+  final double largeModelHeight;
+}
+
+final class _UnderstoryRecordDialog extends StatefulWidget {
+  const _UnderstoryRecordDialog({required this.plotCount});
+
+  final int plotCount;
+
+  @override
+  State<_UnderstoryRecordDialog> createState() =>
+      _UnderstoryRecordDialogState();
+}
+
+final class _UnderstoryRecordDialogState
+    extends State<_UnderstoryRecordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _modelAgeController = TextEditingController(text: '0');
+  final _modelDiameterController = TextEditingController(text: '0');
+  final _modelHeightController = TextEditingController(text: '0');
+  final _largeModelAgeController = TextEditingController(text: '0');
+  final _largeModelDiameterController = TextEditingController(text: '0');
+  final _largeModelHeightController = TextEditingController(text: '0');
+  final _speciesController = TextEditingController();
+  final _speciesFocusNode = FocusNode();
+
+  int? _selectedPlotNumber;
+
+  @override
+  void dispose() {
+    _modelAgeController.dispose();
+    _modelDiameterController.dispose();
+    _modelHeightController.dispose();
+    _largeModelAgeController.dispose();
+    _largeModelDiameterController.dispose();
+    _largeModelHeightController.dispose();
+    _speciesController.dispose();
+    _speciesFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Добавить запись подлеска'),
+      content: SizedBox(
+        width: 560,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue: _selectedPlotNumber,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Номер учетной площадки',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (var number = 1; number <= widget.plotCount; number++)
+                      DropdownMenuItem<int>(
+                        value: number,
+                        child: Text(number.toString()),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedPlotNumber = value);
+                  },
+                  validator: (value) =>
+                      value == null ? 'Выберите номер площадки' : null,
+                ),
+                const SizedBox(height: 12),
+                RawAutocomplete<String>(
+                  textEditingController: _speciesController,
+                  focusNode: _speciesFocusNode,
+                  displayStringForOption: (option) => option,
+                  optionsBuilder: (textEditingValue) {
+                    final query = textEditingValue.text.trim().toLowerCase();
+                    if (query.isEmpty) {
+                      return allSpecies;
+                    }
+
+                    return allSpecies.where(
+                      (species) => species.toLowerCase().contains(query),
+                    );
+                  },
+                  onSelected: (value) {
+                    _speciesController.text = value;
+                  },
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Порода',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Выберите породу'
+                              : null,
+                          onFieldSubmitted: (_) => onFieldSubmitted(),
+                        );
+                      },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxHeight: 280,
+                            maxWidth: 360,
+                          ),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options.elementAt(index);
+
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Text(option),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Модельное дерево',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 460;
+                    final children = [
+                      _ModelTreeFields(
+                        title: 'Мелкий подлесок',
+                        ageController: _modelAgeController,
+                        diameterController: _modelDiameterController,
+                        heightController: _modelHeightController,
+                      ),
+                      _ModelTreeFields(
+                        title: 'Крупный подлесок',
+                        ageController: _largeModelAgeController,
+                        diameterController: _largeModelDiameterController,
+                        heightController: _largeModelHeightController,
+                      ),
+                    ];
+
+                    if (!isWide) {
+                      return Column(
+                        children: [
+                          children[0],
+                          const SizedBox(height: 12),
+                          children[1],
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: children[0]),
+                        const SizedBox(width: 12),
+                        Expanded(child: children[1]),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(onPressed: _onSavePressed, child: const Text('Сохранить')),
+      ],
+    );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _UnderstoryRecordDraft(
+        plotNumber: _selectedPlotNumber!,
+        species: _speciesController.text.trim(),
+        modelAge: _tryParseInt(_modelAgeController.text),
+        modelDiameter: _tryParseDouble(_modelDiameterController.text),
+        modelHeight: _tryParseDouble(_modelHeightController.text),
+        largeModelAge: _tryParseInt(_largeModelAgeController.text),
+        largeModelDiameter: _tryParseDouble(_largeModelDiameterController.text),
+        largeModelHeight: _tryParseDouble(_largeModelHeightController.text),
+      ),
+    );
+  }
+
+  int _tryParseInt(String value) {
+    return int.tryParse(value.trim()) ?? 0;
+  }
+
+  double _tryParseDouble(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+  }
+}
+
+final class _ModelTreeFields extends StatelessWidget {
+  const _ModelTreeFields({
+    required this.title,
+    required this.ageController,
+    required this.diameterController,
+    required this.heightController,
+  });
+
+  final String title;
+  final TextEditingController ageController;
+  final TextEditingController diameterController;
+  final TextEditingController heightController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: ageController,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Возраст, лет',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: diameterController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Диаметр',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: heightController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Высота',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -286,14 +952,16 @@ final class _UnderstoryEditableTable extends StatelessWidget {
   const _UnderstoryEditableTable({
     required this.rows,
     required this.selectedIndex,
+    required this.editMode,
     required this.onRowSelected,
-    required this.onRowFocusLost,
+    required this.onRowChanged,
   });
 
   final List<_UnderstoryTableRow> rows;
   final int? selectedIndex;
+  final _CountEditMode editMode;
   final ValueChanged<int> onRowSelected;
-  final ValueChanged<_UnderstoryTableRow> onRowFocusLost;
+  final ValueChanged<_UnderstoryTableRow> onRowChanged;
 
   static const _borderColor = Color(0xFFE0E0E0);
   static const _rowHeight = 56.0;
@@ -307,31 +975,41 @@ final class _UnderstoryEditableTable extends StatelessWidget {
       child: Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         columnWidths: const {
-          0: FixedColumnWidth(44),
-          1: FixedColumnWidth(76),
-          2: FixedColumnWidth(150),
-          3: FixedColumnWidth(150),
+          0: FixedColumnWidth(76),
+          1: FixedColumnWidth(110),
+          2: FixedColumnWidth(68),
+          3: FixedColumnWidth(68),
           4: FixedColumnWidth(68),
           5: FixedColumnWidth(68),
           6: FixedColumnWidth(68),
           7: FixedColumnWidth(68),
           8: FixedColumnWidth(68),
           9: FixedColumnWidth(68),
-          10: FixedColumnWidth(76),
+          10: FixedColumnWidth(68),
+          11: FixedColumnWidth(68),
+          12: FixedColumnWidth(68),
+          13: FixedColumnWidth(68),
+          14: FixedColumnWidth(68),
+          15: FixedColumnWidth(68),
         },
         children: [
           const TableRow(
             decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
             children: [
-              _HeaderCell(text: '', height: 56),
               _HeaderCell(text: '№\nуч.\nпл.', height: 56),
               _HeaderCell(text: 'Древесная\nпорода', height: 56),
-              _HeaderCell(text: 'Происхо-\nждение', height: 56),
               _HeaderCell(text: 'Мелкий, средний подлесок', height: 56),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
-              _HeaderCell(text: 'показатели\nмодельного\nдерева', height: 56),
+              _HeaderCell(text: 'Крупный подлесок', height: 56),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
             ],
@@ -340,6 +1018,11 @@ final class _UnderstoryEditableTable extends StatelessWidget {
             decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
             children: [
               _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell(
+                text: 'количество по\nгруппам высот, шт.',
+                height: 50,
+              ),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
@@ -353,22 +1036,30 @@ final class _UnderstoryEditableTable extends StatelessWidget {
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
+              _HeaderCell.empty(),
             ],
           ),
           const TableRow(
             decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
             children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell.empty(),
               _HeaderCell(text: 'до 0.5', height: 42),
               _HeaderCell.empty(),
               _HeaderCell(text: '0.51-1.5', height: 42),
               _HeaderCell.empty(),
-              _HeaderCell(text: 'A,\nлет', height: 42),
-              _HeaderCell(text: 'h, м', height: 42),
-              _HeaderCell(text: 'd0.5\nh, см', height: 42),
+              _HeaderCell(text: '1.51-2.5', height: 42),
+              _HeaderCell.empty(),
+              _HeaderCell(text: '2.51-3.5', height: 42),
+              _HeaderCell.empty(),
+              _HeaderCell(text: '3.51-4.5', height: 42),
+              _HeaderCell.empty(),
+              _HeaderCell(text: '4.51-5.5', height: 42),
+              _HeaderCell.empty(),
+              _HeaderCell(text: '5.51 и>', height: 42),
+              _HeaderCell.empty(),
             ],
           ),
           const TableRow(
@@ -376,15 +1067,20 @@ final class _UnderstoryEditableTable extends StatelessWidget {
             children: [
               _HeaderCell.empty(),
               _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
               _HeaderCell(text: 'ж.', height: 36),
               _HeaderCell(text: 'пог.', height: 36),
               _HeaderCell(text: 'ж.', height: 36),
               _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
+              _HeaderCell(text: 'ж.', height: 36),
+              _HeaderCell(text: 'пог.', height: 36),
+              _HeaderCell(text: 'ж.', height: 36),
+              _HeaderCell(text: 'пог.', height: 36),
+              _HeaderCell(text: 'ж.', height: 36),
+              _HeaderCell(text: 'пог.', height: 36),
+              _HeaderCell(text: 'ж.', height: 36),
+              _HeaderCell(text: 'пог.', height: 36),
+              _HeaderCell(text: 'ж.', height: 36),
+              _HeaderCell(text: 'пог.', height: 36),
             ],
           ),
           for (var index = 0; index < rows.length; index++)
@@ -410,373 +1106,163 @@ final class _UnderstoryEditableTable extends StatelessWidget {
     final rowColor = isSelected
         ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
         : Colors.white;
-    final rowKey = row.keySuffix;
 
     return TableRow(
       decoration: BoxDecoration(color: rowColor),
       children: [
-        _SelectableIndexCell(
-          text: '${index + 1}',
-          isSelected: isSelected,
-          onTap: () => onRowSelected(index),
-        ),
-        _EditableTableCell(
-          initialValue: row.plotNumber,
-          cellKey: ValueKey('plot-number-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) {
-            row.plotNumber = value;
-            onRowSelected(index);
-          },
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _DropdownTableCell(
-          value: allSpecies.contains(row.species) ? row.species : null,
-          items: allSpecies,
-          cellKey: ValueKey('species-$rowKey'),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) {
-            row.species = value ?? '';
-            onRowFocusLost(row);
-          },
-        ),
-        _DropdownTableCell(
-          value: allOrigins.contains(row.origin) ? row.origin : null,
-          items: allOrigins,
-          cellKey: ValueKey('origin-$rowKey'),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) {
-            row.origin = value ?? '';
-            onRowFocusLost(row);
-          },
-        ),
-        _EditableTableCell(
-          initialValue: row.smallLiving,
-          cellKey: ValueKey('small-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.smallLiving = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.smallDamaged,
-          cellKey: ValueKey('small-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.smallDamaged = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.mediumLiving,
-          cellKey: ValueKey('medium-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.mediumLiving = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.mediumDamaged,
-          cellKey: ValueKey('medium-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.mediumDamaged = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.modelAge,
-          cellKey: ValueKey('model-age-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.modelAge = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.modelHeight,
-          cellKey: ValueKey('model-height-$rowKey'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.modelHeight = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-        _EditableTableCell(
-          initialValue: row.modelDiameter,
-          cellKey: ValueKey('model-diameter-$rowKey'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.modelDiameter = value,
-          onFocusLost: () => onRowFocusLost(row),
-        ),
-      ],
-    );
-  }
-}
-
-final class _LargeUnderstoryEditableTable extends StatelessWidget {
-  const _LargeUnderstoryEditableTable({
-    required this.rows,
-    required this.selectedIndex,
-    required this.onRowSelected,
-    required this.onRowFocusLost,
-  });
-
-  final List<_UnderstoryTableRow> rows;
-  final int? selectedIndex;
-  final ValueChanged<int> onRowSelected;
-  final ValueChanged<_UnderstoryTableRow> onRowFocusLost;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: _UnderstoryEditableTable._borderColor),
-      ),
-      child: Table(
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        columnWidths: const {
-          0: FixedColumnWidth(44),
-          1: FixedColumnWidth(76),
-          2: FixedColumnWidth(68),
-          3: FixedColumnWidth(68),
-          4: FixedColumnWidth(68),
-          5: FixedColumnWidth(68),
-          6: FixedColumnWidth(68),
-          7: FixedColumnWidth(68),
-          8: FixedColumnWidth(68),
-          9: FixedColumnWidth(68),
-          10: FixedColumnWidth(68),
-          11: FixedColumnWidth(68),
-          12: FixedColumnWidth(68),
-          13: FixedColumnWidth(68),
-          14: FixedColumnWidth(76),
-        },
-        children: [
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell(text: '', height: 56),
-              _HeaderCell(text: '№\nуч.\nпл.', height: 56),
-              _HeaderCell(text: 'Крупный подлесок', height: 56),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'показатели\nмодельного\nдерева', height: 56),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-            ],
-          ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(
-                text: 'количество по\nгруппам высот, шт.',
-                height: 50,
-              ),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-            ],
-          ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '1.51-2.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '2.51-3.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '3.51-4.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '4.51-5.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '5.51 и>', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'A,\nлет', height: 42),
-              _HeaderCell(text: 'h, м', height: 42),
-              _HeaderCell(text: 'd1.3,\nсм', height: 42),
-            ],
-          ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-            ],
-          ),
-          for (var index = 0; index < rows.length; index++)
-            _buildDataRow(
-              index: index,
-              row: rows[index],
-              isSelected: selectedIndex == index,
-              theme: theme,
-            ),
-        ],
-      ),
-    );
-  }
-
-  TableRow _buildDataRow({
-    required int index,
-    required _UnderstoryTableRow row,
-    required bool isSelected,
-    required ThemeData theme,
-  }) {
-    final rowColor = isSelected
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
-        : Colors.white;
-    final rowKey = row.keySuffix;
-
-    return TableRow(
-      decoration: BoxDecoration(color: rowColor),
-      children: [
-        _SelectableIndexCell(
-          text: '${index + 1}',
-          isSelected: isSelected,
-          onTap: () => onRowSelected(index),
-        ),
         _ReadOnlyTableCell(
           text: row.plotNumber,
           onTap: () => onRowSelected(index),
         ),
-        _EditableTableCell(
-          initialValue: row.large15125Living,
-          cellKey: ValueKey('large-151-25-living-$rowKey'),
-          keyboardType: TextInputType.number,
+        _ReadOnlyTableCell(
+          text: row.species,
           onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large15125Living = value,
-          onFocusLost: () => onRowFocusLost(row),
         ),
-        _EditableTableCell(
-          initialValue: row.large15125Damaged,
-          cellKey: ValueKey('large-151-25-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large15125Damaged = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.smallLiving,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.smallLiving,
+            onChanged: (value) => row.smallLiving = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large25135Living,
-          cellKey: ValueKey('large-251-35-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large25135Living = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.smallDamaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.smallDamaged,
+            onChanged: (value) => row.smallDamaged = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large25135Damaged,
-          cellKey: ValueKey('large-251-35-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large25135Damaged = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.mediumLiving,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.mediumLiving,
+            onChanged: (value) => row.mediumLiving = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large35145Living,
-          cellKey: ValueKey('large-351-45-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large35145Living = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.mediumDamaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.mediumDamaged,
+            onChanged: (value) => row.mediumDamaged = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large35145Damaged,
-          cellKey: ValueKey('large-351-45-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large35145Damaged = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large15125Living,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large15125Living,
+            onChanged: (value) => row.large15125Living = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large45155Living,
-          cellKey: ValueKey('large-451-55-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large45155Living = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large15125Damaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large15125Damaged,
+            onChanged: (value) => row.large15125Damaged = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large45155Damaged,
-          cellKey: ValueKey('large-451-55-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large45155Damaged = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large25135Living,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large25135Living,
+            onChanged: (value) => row.large25135Living = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large551PlusLiving,
-          cellKey: ValueKey('large-551-plus-living-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large551PlusLiving = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large25135Damaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large25135Damaged,
+            onChanged: (value) => row.large25135Damaged = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.large551PlusDamaged,
-          cellKey: ValueKey('large-551-plus-damaged-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.large551PlusDamaged = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large35145Living,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large35145Living,
+            onChanged: (value) => row.large35145Living = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.largeModelAge,
-          cellKey: ValueKey('large-model-age-$rowKey'),
-          keyboardType: TextInputType.number,
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.largeModelAge = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large35145Damaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large35145Damaged,
+            onChanged: (value) => row.large35145Damaged = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.largeModelHeight,
-          cellKey: ValueKey('large-model-height-$rowKey'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.largeModelHeight = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large45155Living,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large45155Living,
+            onChanged: (value) => row.large45155Living = value,
+          ),
         ),
-        _EditableTableCell(
-          initialValue: row.largeModelDiameter,
-          cellKey: ValueKey('large-model-diameter-$rowKey'),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onTap: () => onRowSelected(index),
-          onChanged: (value) => row.largeModelDiameter = value,
-          onFocusLost: () => onRowFocusLost(row),
+        _CountTableCell(
+          text: row.large45155Damaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large45155Damaged,
+            onChanged: (value) => row.large45155Damaged = value,
+          ),
+        ),
+        _CountTableCell(
+          text: row.large551PlusLiving,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large551PlusLiving,
+            onChanged: (value) => row.large551PlusLiving = value,
+          ),
+        ),
+        _CountTableCell(
+          text: row.large551PlusDamaged,
+          onTap: () => _changeCount(
+            index: index,
+            row: row,
+            value: row.large551PlusDamaged,
+            onChanged: (value) => row.large551PlusDamaged = value,
+          ),
         ),
       ],
     );
+  }
+
+  void _changeCount({
+    required int index,
+    required _UnderstoryTableRow row,
+    required String value,
+    required ValueChanged<String> onChanged,
+  }) {
+    final currentValue = int.tryParse(value.trim()) ?? 0;
+    final nextValue = switch (editMode) {
+      _CountEditMode.increment => currentValue + 1,
+      _CountEditMode.decrement => currentValue <= 0 ? 0 : currentValue - 1,
+    };
+
+    onChanged(nextValue.toString());
+    onRowSelected(index);
+    onRowChanged(row);
   }
 }
 
@@ -785,7 +1271,6 @@ final class _UnderstoryTableRow {
     required this.probaInfoId,
     required this.plotNumber,
     required this.species,
-    required this.origin,
     required this.smallLiving,
     required this.smallDamaged,
     required this.mediumLiving,
@@ -809,19 +1294,21 @@ final class _UnderstoryTableRow {
     this.id,
   });
 
-  factory _UnderstoryTableRow.empty({required int probaInfoId}) {
+  factory _UnderstoryTableRow.fromDraft({
+    required int probaInfoId,
+    required _UnderstoryRecordDraft draft,
+  }) {
     return _UnderstoryTableRow(
       probaInfoId: probaInfoId,
-      plotNumber: '0',
-      species: '',
-      origin: '',
+      plotNumber: draft.plotNumber.toString(),
+      species: draft.species,
       smallLiving: '0',
       smallDamaged: '0',
       mediumLiving: '0',
       mediumDamaged: '0',
-      modelAge: '0',
-      modelHeight: '0',
-      modelDiameter: '0',
+      modelAge: draft.modelAge.toString(),
+      modelHeight: _formatDouble(draft.modelHeight),
+      modelDiameter: _formatDouble(draft.modelDiameter),
       large15125Living: '0',
       large15125Damaged: '0',
       large25135Living: '0',
@@ -832,9 +1319,9 @@ final class _UnderstoryTableRow {
       large45155Damaged: '0',
       large551PlusLiving: '0',
       large551PlusDamaged: '0',
-      largeModelAge: '0',
-      largeModelHeight: '0',
-      largeModelDiameter: '0',
+      largeModelAge: draft.largeModelAge.toString(),
+      largeModelHeight: _formatDouble(draft.largeModelHeight),
+      largeModelDiameter: _formatDouble(draft.largeModelDiameter),
     );
   }
 
@@ -844,7 +1331,6 @@ final class _UnderstoryTableRow {
       probaInfoId: record.probaInfoId,
       plotNumber: record.plotNumber.toString(),
       species: record.species ?? '',
-      origin: record.origin ?? '',
       smallLiving: record.smallLiving.toString(),
       smallDamaged: record.smallDamaged.toString(),
       mediumLiving: record.mediumLiving.toString(),
@@ -872,7 +1358,6 @@ final class _UnderstoryTableRow {
   final int probaInfoId;
   String plotNumber;
   String species;
-  String origin;
   String smallLiving;
   String smallDamaged;
   String mediumLiving;
@@ -902,7 +1387,6 @@ final class _UnderstoryTableRow {
       probaInfoId: probaInfoId,
       plotNumber: _parseInt(plotNumber),
       species: _emptyToNull(species),
-      origin: _emptyToNull(origin),
       smallLiving: _parseInt(smallLiving),
       smallDamaged: _parseInt(smallDamaged),
       mediumLiving: _parseInt(mediumLiving),
@@ -984,41 +1468,6 @@ final class _HeaderCell extends StatelessWidget {
   }
 }
 
-final class _SelectableIndexCell extends StatelessWidget {
-  const _SelectableIndexCell({
-    required this.text,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String text;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: _UnderstoryEditableTable._rowHeight,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: _UnderstoryEditableTable._borderColor),
-        ),
-        child: Text(
-          text,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: isSelected ? theme.colorScheme.primary : null,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 final class _ReadOnlyTableCell extends StatelessWidget {
   const _ReadOnlyTableCell({required this.text, required this.onTap});
 
@@ -1036,136 +1485,43 @@ final class _ReadOnlyTableCell extends StatelessWidget {
           border: Border.all(color: _UnderstoryEditableTable._borderColor),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(text, textAlign: TextAlign.center),
-      ),
-    );
-  }
-}
-
-final class _EditableTableCell extends StatefulWidget {
-  const _EditableTableCell({
-    required this.initialValue,
-    required this.cellKey,
-    required this.onChanged,
-    required this.onTap,
-    required this.onFocusLost,
-    this.keyboardType,
-  }) : super(key: cellKey);
-
-  final String initialValue;
-  final Key cellKey;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onTap;
-  final VoidCallback onFocusLost;
-  final TextInputType? keyboardType;
-
-  @override
-  State<_EditableTableCell> createState() => _EditableTableCellState();
-}
-
-final class _EditableTableCellState extends State<_EditableTableCell> {
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode()..addListener(_onFocusChanged);
-  }
-
-  @override
-  void dispose() {
-    _focusNode
-      ..removeListener(_onFocusChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      widget.onFocusLost();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: _UnderstoryEditableTable._rowHeight,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border.all(color: _UnderstoryEditableTable._borderColor),
-      ),
-      child: TextFormField(
-        focusNode: _focusNode,
-        initialValue: widget.initialValue,
-        keyboardType: widget.keyboardType,
-        textAlign: TextAlign.center,
-        onTap: widget.onTap,
-        onChanged: widget.onChanged,
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+        child: Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
 }
 
-final class _DropdownTableCell extends StatelessWidget {
-  const _DropdownTableCell({
-    required this.value,
-    required this.items,
-    required this.cellKey,
-    required this.onChanged,
-    required this.onTap,
-  });
+final class _CountTableCell extends StatelessWidget {
+  const _CountTableCell({required this.text, required this.onTap});
 
-  final String? value;
-  final List<String> items;
-  final Key cellKey;
-  final ValueChanged<String?> onChanged;
+  final String text;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: _UnderstoryEditableTable._rowHeight,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border.all(color: _UnderstoryEditableTable._borderColor),
-      ),
-      child: DropdownButtonFormField<String>(
-        key: cellKey,
-        initialValue: value,
-        isExpanded: true,
-        menuMaxHeight: 360,
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: _UnderstoryEditableTable._rowHeight,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: _UnderstoryEditableTable._borderColor),
         ),
-        items: items
-            .map(
-              (item) => DropdownMenuItem<String>(
-                value: item,
-                child: Text(item, maxLines: 2, softWrap: true),
-              ),
-            )
-            .toList(),
-        selectedItemBuilder: (context) => items
-            .map(
-              (item) => Center(
-                child: Text(
-                  item,
-                  maxLines: 2,
-                  softWrap: true,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-            .toList(),
-        onTap: onTap,
-        onChanged: onChanged,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

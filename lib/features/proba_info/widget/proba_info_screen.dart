@@ -438,24 +438,33 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
   Widget _buildSamplePlotCard() {
     return _SectionCard(
       title: 'Пробная площадь',
-      child: _buildResponsiveFields(
+      child: Column(
         children: [
-          _buildNumberField(
-            controller: _quarterController,
-            labelText: 'Квартал',
+          _buildResponsiveFields(
+            children: [
+              _buildNumberField(
+                controller: _quarterController,
+                labelText: 'Квартал',
+              ),
+              _buildNumberField(
+                controller: _allotmentController,
+                labelText: 'Выдел',
+              ),
+            ],
           ),
-          _buildNumberField(
-            controller: _allotmentController,
-            labelText: 'Выдел',
-          ),
-          _buildNumberField(
-            controller: _samplePlotNumberController,
-            labelText: 'Номер пробной площади',
-          ),
-          _buildNumberField(
-            controller: _samplePlotAreaController,
-            labelText: 'Площадь ПП',
-            allowDecimal: true,
+          const SizedBox(height: 12),
+          _buildResponsiveFields(
+            children: [
+              _buildNumberField(
+                controller: _samplePlotNumberController,
+                labelText: 'Номер пробной площади',
+              ),
+              _buildNumberField(
+                controller: _samplePlotAreaController,
+                labelText: 'Площадь ПП',
+                allowDecimal: true,
+              ),
+            ],
           ),
         ],
       ),
@@ -712,6 +721,8 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
   }
 
   ProbaInfoRecord _buildRecord({int? id}) {
+    final initialRecord = _initialRecord;
+
     return ProbaInfoRecord(
       id: id,
       region: _emptyToNull(_selectedRegion),
@@ -730,6 +741,10 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       allotment: _parseInt(_allotmentController.text),
       samplePlotNumber: _parseInt(_samplePlotNumberController.text),
       samplePlotArea: _parseDouble(_samplePlotAreaController.text),
+      undergrowthPlotCount: initialRecord?.undergrowthPlotCount ?? 0,
+      undergrowthPlotArea: initialRecord?.undergrowthPlotArea ?? 0,
+      understoryPlotCount: initialRecord?.understoryPlotCount ?? 0,
+      understoryPlotArea: initialRecord?.understoryPlotArea ?? 0,
     );
   }
 

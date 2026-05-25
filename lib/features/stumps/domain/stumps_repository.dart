@@ -37,16 +37,12 @@ final class StumpsRepository {
     return _database.insert('stumps', _toRow(record));
   }
 
-  Future<List<StumpRecord>> getLatestByProbaInfoId(
-    int probaInfoId, {
-    int limit = 4,
-  }) async {
+  Future<List<StumpRecord>> getLatestByProbaInfoId(int probaInfoId) async {
     final rows = await _database.query(
       'stumps',
       where: 'proba_info_id = ?',
       whereArgs: [probaInfoId],
       orderBy: 'id DESC',
-      limit: limit,
     );
 
     return rows.map(_fromRow).toList();

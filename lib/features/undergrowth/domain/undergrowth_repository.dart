@@ -26,14 +26,12 @@ final class UndergrowthRecord {
     required this.largeModelDiameter,
     this.id,
     this.species,
-    this.origin,
   });
 
   final int? id;
   final int probaInfoId;
   final int plotNumber;
   final String? species;
-  final String? origin;
   final int smallLiving;
   final int smallDamaged;
   final int mediumLiving;
@@ -101,7 +99,6 @@ final class UndergrowthRepository {
       probaInfoId: (row['proba_info_id'] as int?)!,
       plotNumber: (row['plot_number'] as int?)!,
       species: row['species']?.toString(),
-      origin: row['origin']?.toString(),
       smallLiving: (row['small_living'] as int?)!,
       smallDamaged: (row['small_damaged'] as int?)!,
       mediumLiving: (row['medium_living'] as int?)!,
@@ -130,7 +127,6 @@ final class UndergrowthRepository {
       'proba_info_id': record.probaInfoId,
       'plot_number': record.plotNumber,
       'species': record.species,
-      'origin': record.origin,
       'small_living': record.smallLiving,
       'small_damaged': record.smallDamaged,
       'medium_living': record.mediumLiving,

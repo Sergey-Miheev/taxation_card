@@ -6,6 +6,10 @@ final class ProbaInfoRecord {
     required this.allotment,
     required this.samplePlotNumber,
     required this.samplePlotArea,
+    required this.undergrowthPlotCount,
+    required this.undergrowthPlotArea,
+    required this.understoryPlotCount,
+    required this.understoryPlotArea,
     this.id,
     this.region,
     this.district,
@@ -54,6 +58,10 @@ final class ProbaInfoRecord {
   final int allotment;
   final int samplePlotNumber;
   final double samplePlotArea;
+  final int undergrowthPlotCount;
+  final double undergrowthPlotArea;
+  final int understoryPlotCount;
+  final double understoryPlotArea;
 }
 
 final class ProbaInfoRepository {
@@ -124,6 +132,46 @@ final class ProbaInfoRepository {
     );
   }
 
+  Future<int> updateCoordinatePoint({
+    required int id,
+    required int pointNumber,
+    required String x,
+    required String y,
+  }) {
+    return _database.update(
+      'proba_info',
+      {'x$pointNumber': x, 'y$pointNumber': y},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateUndergrowthPlotInfo({
+    required int id,
+    required int plotCount,
+    required double plotArea,
+  }) {
+    return _database.update(
+      'proba_info',
+      {'undergrowth_plot_count': plotCount, 'undergrowth_plot_area': plotArea},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateUnderstoryPlotInfo({
+    required int id,
+    required int plotCount,
+    required double plotArea,
+  }) {
+    return _database.update(
+      'proba_info',
+      {'understory_plot_count': plotCount, 'understory_plot_area': plotArea},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   ProbaInfoRecord _fromRow(Map<String, Object?> row) {
     return ProbaInfoRecord(
       id: row['id'] as int?,
@@ -151,6 +199,10 @@ final class ProbaInfoRepository {
       allotment: row['allotment']! as int,
       samplePlotNumber: row['sample_plot_number']! as int,
       samplePlotArea: (row['sample_plot_area']! as num).toDouble(),
+      undergrowthPlotCount: row['undergrowth_plot_count']! as int,
+      undergrowthPlotArea: (row['undergrowth_plot_area']! as num).toDouble(),
+      understoryPlotCount: row['understory_plot_count']! as int,
+      understoryPlotArea: (row['understory_plot_area']! as num).toDouble(),
     );
   }
 
@@ -180,6 +232,10 @@ final class ProbaInfoRepository {
       'allotment': record.allotment,
       'sample_plot_number': record.samplePlotNumber,
       'sample_plot_area': record.samplePlotArea,
+      'undergrowth_plot_count': record.undergrowthPlotCount,
+      'undergrowth_plot_area': record.undergrowthPlotArea,
+      'understory_plot_count': record.understoryPlotCount,
+      'understory_plot_area': record.understoryPlotArea,
     };
   }
 }

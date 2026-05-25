@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 
 final class CoordinatesScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
   var _selectedPoint = 0;
   var _isLoading = true;
   var _isSaving = false;
+  var _isGettingGps = false;
   var _showValidationErrors = false;
 
   @override
@@ -79,6 +81,24 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 _buildCoordinateFields(_selectedPoint),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _isGettingGps
+                                        ? null
+                                        : _fillSelectedPointFromGps,
+                                    icon: _isGettingGps
+                                        ? const SizedBox.square(
+                                            dimension: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.my_location),
+                                    label: const Text('Получить из GPS'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -98,7 +118,7 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text('Сохранить координаты'),
+                                : Text('Сохранить точку ${_selectedPoint + 1}'),
                           ),
                         ),
                       ],
@@ -188,13 +208,6 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
 
     setState(() => _showValidationErrors = true);
 
-    final firstEmptyPoint = _firstEmptyPointIndex();
-    if (firstEmptyPoint != null) {
-      setState(() => _selectedPoint = firstEmptyPoint);
-      _showSnackBar('Заполните координаты всех точек');
-      return;
-    }
-
     if (!(_formKey.currentState?.validate() ?? false)) {
       _showSnackBar('Заполните выделенные поля');
       return;
@@ -203,27 +216,23 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
     setState(() => _isSaving = true);
 
     try {
-      await DependenciesScope.of(context).probaInfoRepository.updateCoordinates(
+      await DependenciesScope.of(
+        context,
+      ).probaInfoRepository.updateCoordinatePoint(
         id: widget.probaInfoId,
-        x1: _xControllers[0].text.trim(),
-        y1: _yControllers[0].text.trim(),
-        x2: _xControllers[1].text.trim(),
-        y2: _yControllers[1].text.trim(),
-        x3: _xControllers[2].text.trim(),
-        y3: _yControllers[2].text.trim(),
-        x4: _xControllers[3].text.trim(),
-        y4: _yControllers[3].text.trim(),
+        pointNumber: _selectedPoint + 1,
+        x: _xControllers[_selectedPoint].text.trim(),
+        y: _yControllers[_selectedPoint].text.trim(),
       );
 
       if (!mounted) {
         return;
       }
 
-      _showSnackBar('Координаты сохранены');
-      Navigator.of(context).pop();
+      _showSnackBar('Точка ${_selectedPoint + 1} сохранена');
     } on Object catch (_) {
       if (mounted) {
-        _showSnackBar('Не удалось сохранить координаты');
+        _showSnackBar('Не удалось сохранить точку ${_selectedPoint + 1}');
       }
     } finally {
       if (mounted) {
@@ -232,15 +241,94 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
     }
   }
 
-  int? _firstEmptyPointIndex() {
-    for (var i = 0; i < 4; i++) {
-      if (_xControllers[i].text.trim().isEmpty ||
-          _yControllers[i].text.trim().isEmpty) {
-        return i;
-      }
+  Future<void> _fillSelectedPointFromGps() async {
+    if (_isGettingGps) {
+      return;
     }
 
-    return null;
+    setState(() => _isGettingGps = true);
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showSnackBar('Включите геолокацию на устройстве');
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        _showSnackBar('Разрешите доступ к геолокации');
+        return;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showSnackBar('Доступ к геолокации запрещён в настройках');
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _setText(
+        _xControllers[_selectedPoint],
+        position.latitude.toStringAsFixed(7),
+      );
+      _setText(
+        _yControllers[_selectedPoint],
+        position.longitude.toStringAsFixed(7),
+      );
+      setState(() {});
+      _showSnackBar('Координаты подставлены для точки ${_selectedPoint + 1}');
+    } on TimeoutException catch (_) {
+      Position? lastKnownPosition;
+      try {
+        lastKnownPosition = await Geolocator.getLastKnownPosition();
+      } on Object {
+        lastKnownPosition = null;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (lastKnownPosition == null) {
+        _showSnackBar('GPS не ответил. Последняя позиция не найдена');
+        return;
+      }
+
+      _setText(
+        _xControllers[_selectedPoint],
+        lastKnownPosition.latitude.toStringAsFixed(7),
+      );
+      _setText(
+        _yControllers[_selectedPoint],
+        lastKnownPosition.longitude.toStringAsFixed(7),
+      );
+      setState(() {});
+      _showSnackBar(
+        'Подставлена последняя известная позиция для точки ${_selectedPoint + 1}',
+      );
+    } on Object catch (_) {
+      if (mounted) {
+        _showSnackBar('Не удалось получить координаты GPS');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGettingGps = false);
+      }
+    }
   }
 
   void _setText(TextEditingController controller, String text) {
