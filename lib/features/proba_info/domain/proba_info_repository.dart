@@ -6,6 +6,8 @@ final class ProbaInfoRecord {
     required this.allotment,
     required this.samplePlotNumber,
     required this.samplePlotArea,
+    required this.deadwoodArea,
+    required this.stumpsAccountingArea,
     required this.undergrowthPlotCount,
     required this.undergrowthPlotArea,
     required this.understoryPlotCount,
@@ -58,6 +60,8 @@ final class ProbaInfoRecord {
   final int allotment;
   final int samplePlotNumber;
   final double samplePlotArea;
+  final double deadwoodArea;
+  final double stumpsAccountingArea;
   final int undergrowthPlotCount;
   final double undergrowthPlotArea;
   final int understoryPlotCount;
@@ -172,6 +176,27 @@ final class ProbaInfoRepository {
     );
   }
 
+  Future<int> updateDeadwoodArea({required int id, required double area}) {
+    return _database.update(
+      'proba_info',
+      {'deadwood_area': area},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateStumpsAccountingArea({
+    required int id,
+    required double area,
+  }) {
+    return _database.update(
+      'proba_info',
+      {'stumps_accounting_area': area},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   ProbaInfoRecord _fromRow(Map<String, Object?> row) {
     return ProbaInfoRecord(
       id: row['id'] as int?,
@@ -199,6 +224,8 @@ final class ProbaInfoRepository {
       allotment: row['allotment']! as int,
       samplePlotNumber: row['sample_plot_number']! as int,
       samplePlotArea: (row['sample_plot_area']! as num).toDouble(),
+      deadwoodArea: (row['deadwood_area']! as num).toDouble(),
+      stumpsAccountingArea: (row['stumps_accounting_area']! as num).toDouble(),
       undergrowthPlotCount: row['undergrowth_plot_count']! as int,
       undergrowthPlotArea: (row['undergrowth_plot_area']! as num).toDouble(),
       understoryPlotCount: row['understory_plot_count']! as int,
@@ -232,6 +259,8 @@ final class ProbaInfoRepository {
       'allotment': record.allotment,
       'sample_plot_number': record.samplePlotNumber,
       'sample_plot_area': record.samplePlotArea,
+      'deadwood_area': record.deadwoodArea,
+      'stumps_accounting_area': record.stumpsAccountingArea,
       'undergrowth_plot_count': record.undergrowthPlotCount,
       'undergrowth_plot_area': record.undergrowthPlotArea,
       'understory_plot_count': record.understoryPlotCount,

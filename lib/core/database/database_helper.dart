@@ -178,6 +178,8 @@ CREATE TABLE IF NOT EXISTS proba_info (
   allotment INTEGER NOT NULL,
   sample_plot_number INTEGER NOT NULL,
   sample_plot_area REAL NOT NULL,
+  deadwood_area REAL NOT NULL,
+  stumps_accounting_area REAL NOT NULL,
   x1 TEXT,
   y1 TEXT,
   x2 TEXT,

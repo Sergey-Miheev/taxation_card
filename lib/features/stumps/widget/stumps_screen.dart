@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
@@ -102,6 +105,8 @@ final class _StumpsScreenState extends State<StumpsScreen>
   String? _selectedDecayStage = _decayStageOptions.first;
   int? _activeDiameterIndex;
   int? _loadedProbaInfoId;
+  double? _stumpsAccountingArea;
+  final Set<int> _promptedStumpsAccountingAreaIds = {};
 
   @override
   void initState() {
@@ -194,6 +199,12 @@ final class _StumpsScreenState extends State<StumpsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildAreaInfo(
+                  context: context,
+                  label: 'Площадь учёта пней',
+                  value: _stumpsAccountingArea,
+                ),
+                const SizedBox(height: 16),
                 Text('Порода', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -334,6 +345,39 @@ final class _StumpsScreenState extends State<StumpsScreen>
   @override
   bool get wantKeepAlive => true;
 
+  Widget _buildAreaInfo({
+    required BuildContext context,
+    required String label,
+    required double? value,
+  }) {
+    final theme = Theme.of(context);
+    final valueText = value == null || value <= 0
+        ? 'не указана'
+        : _formatNumber(value);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: theme.textTheme.titleSmall)),
+            Text(
+              valueText,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecentRecords({
     required BuildContext context,
     required List<StumpRecord> records,
@@ -463,6 +507,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
 
     _loadedProbaInfoId = selectedProbaInfoId;
     if (selectedProbaInfoId == null) {
+      _stumpsAccountingArea = null;
       return;
     }
 
@@ -472,7 +517,70 @@ final class _StumpsScreenState extends State<StumpsScreen>
       }
 
       context.read<StumpsBloc>().add(StumpsEvent.loaded(selectedProbaInfoId));
+      unawaited(_showStumpsAccountingAreaDialogIfNeeded(selectedProbaInfoId));
     });
+  }
+
+  Future<void> _showStumpsAccountingAreaDialogIfNeeded(int probaInfoId) async {
+    if (_promptedStumpsAccountingAreaIds.contains(probaInfoId)) {
+      return;
+    }
+
+    _promptedStumpsAccountingAreaIds.add(probaInfoId);
+    final repository = DependenciesScope.of(context).probaInfoRepository;
+    final probaInfo = await repository.getById(probaInfoId);
+    if (mounted && _loadedProbaInfoId == probaInfoId) {
+      setState(() => _stumpsAccountingArea = probaInfo?.stumpsAccountingArea);
+    }
+
+    if (!mounted ||
+        probaInfo == null ||
+        probaInfo.stumpsAccountingArea > 0 ||
+        _loadedProbaInfoId != probaInfoId) {
+      return;
+    }
+
+    final area = await _showStumpsAccountingAreaDialog();
+    if (!mounted || area == null || _loadedProbaInfoId != probaInfoId) {
+      return;
+    }
+
+    try {
+      await repository.updateStumpsAccountingArea(id: probaInfoId, area: area);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _stumpsAccountingArea = area);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Площадь учёта пней сохранена.')),
+      );
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _promptedStumpsAccountingAreaIds.remove(probaInfoId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить площадь учёта пней.'),
+        ),
+      );
+    }
+  }
+
+  Future<double?> _showStumpsAccountingAreaDialog() {
+    return showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _RequiredAreaDialog(
+        title: 'Площадь учёта пней',
+        labelText: 'Площадь учёта пней',
+        validator: (value) =>
+            _validatePositiveNumber(value, allowDecimal: true),
+        parseValue: _parseRequiredDouble,
+      ),
+    );
   }
 
   void _onDiameterSelected(int number) {
@@ -712,5 +820,68 @@ final class _StumpsScreenState extends State<StumpsScreen>
       });
       context.read<StumpsBloc>().add(StumpsEvent.speciesChanged(result));
     }
+  }
+}
+
+final class _RequiredAreaDialog extends StatefulWidget {
+  const _RequiredAreaDialog({
+    required this.title,
+    required this.labelText,
+    required this.validator,
+    required this.parseValue,
+  });
+
+  final String title;
+  final String labelText;
+  final FormFieldValidator<String> validator;
+  final double Function(String value) parseValue;
+
+  @override
+  State<_RequiredAreaDialog> createState() => _RequiredAreaDialogState();
+}
+
+final class _RequiredAreaDialogState extends State<_RequiredAreaDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Text(widget.title),
+        content: Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: widget.labelText,
+              border: const OutlineInputBorder(),
+            ),
+            validator: widget.validator,
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              if (!(_formKey.currentState?.validate() ?? false)) {
+                return;
+              }
+
+              Navigator.of(context).pop(widget.parseValue(_controller.text));
+            },
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
   }
 }

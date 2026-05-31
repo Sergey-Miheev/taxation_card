@@ -741,6 +741,8 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       allotment: _parseInt(_allotmentController.text),
       samplePlotNumber: _parseInt(_samplePlotNumberController.text),
       samplePlotArea: _parseDouble(_samplePlotAreaController.text),
+      deadwoodArea: initialRecord?.deadwoodArea ?? 0,
+      stumpsAccountingArea: initialRecord?.stumpsAccountingArea ?? 0,
       undergrowthPlotCount: initialRecord?.undergrowthPlotCount ?? 0,
       undergrowthPlotArea: initialRecord?.undergrowthPlotArea ?? 0,
       understoryPlotCount: initialRecord?.understoryPlotCount ?? 0,

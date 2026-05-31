@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
 import 'package:taxation_card/core/widgets/diameter_picker.dart';
+import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 
 final class DeadwoodScreen extends StatefulWidget {
@@ -35,6 +38,8 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   int? _selectedMillimeterNumber;
   bool _isSelectedDiameterManual = false;
   int? _loadedProbaInfoId;
+  double? _deadwoodArea;
+  final Set<int> _promptedDeadwoodAreaIds = {};
 
   @override
   void initState() {
@@ -127,6 +132,12 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildAreaInfo(
+                  context: context,
+                  label: 'Площадь учёта валёжника',
+                  value: _deadwoodArea,
+                ),
+                const SizedBox(height: 16),
                 Text('Порода', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -292,6 +303,39 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   @override
   bool get wantKeepAlive => true;
 
+  Widget _buildAreaInfo({
+    required BuildContext context,
+    required String label,
+    required double? value,
+  }) {
+    final theme = Theme.of(context);
+    final valueText = value == null || value <= 0
+        ? 'не указана'
+        : _formatNumber(value);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: theme.textTheme.titleSmall)),
+            Text(
+              valueText,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecentRecords({
     required BuildContext context,
     required List<DeadwoodRecord> records,
@@ -421,6 +465,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
 
     _loadedProbaInfoId = selectedProbaInfoId;
     if (selectedProbaInfoId == null) {
+      _deadwoodArea = null;
       return;
     }
 
@@ -432,7 +477,70 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       context.read<DeadwoodBloc>().add(
         DeadwoodEvent.loaded(selectedProbaInfoId),
       );
+      unawaited(_showDeadwoodAreaDialogIfNeeded(selectedProbaInfoId));
     });
+  }
+
+  Future<void> _showDeadwoodAreaDialogIfNeeded(int probaInfoId) async {
+    if (_promptedDeadwoodAreaIds.contains(probaInfoId)) {
+      return;
+    }
+
+    _promptedDeadwoodAreaIds.add(probaInfoId);
+    final repository = DependenciesScope.of(context).probaInfoRepository;
+    final probaInfo = await repository.getById(probaInfoId);
+    if (mounted && _loadedProbaInfoId == probaInfoId) {
+      setState(() => _deadwoodArea = probaInfo?.deadwoodArea);
+    }
+
+    if (!mounted ||
+        probaInfo == null ||
+        probaInfo.deadwoodArea > 0 ||
+        _loadedProbaInfoId != probaInfoId) {
+      return;
+    }
+
+    final area = await _showDeadwoodAreaDialog();
+    if (!mounted || area == null || _loadedProbaInfoId != probaInfoId) {
+      return;
+    }
+
+    try {
+      await repository.updateDeadwoodArea(id: probaInfoId, area: area);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => _deadwoodArea = area);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Площадь учёта валёжника сохранена.')),
+      );
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _promptedDeadwoodAreaIds.remove(probaInfoId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить площадь учёта валёжника.'),
+        ),
+      );
+    }
+  }
+
+  Future<double?> _showDeadwoodAreaDialog() {
+    return showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _RequiredAreaDialog(
+        title: 'Площадь учёта валёжника',
+        labelText: 'Площадь учёта валёжника',
+        validator: (value) =>
+            _validatePositiveNumber(value, allowDecimal: true),
+        parseValue: _parseRequiredDouble,
+      ),
+    );
   }
 
   void _toggleDiameterNumber(int number) {
@@ -586,5 +694,68 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       });
       context.read<DeadwoodBloc>().add(DeadwoodEvent.speciesChanged(result));
     }
+  }
+}
+
+final class _RequiredAreaDialog extends StatefulWidget {
+  const _RequiredAreaDialog({
+    required this.title,
+    required this.labelText,
+    required this.validator,
+    required this.parseValue,
+  });
+
+  final String title;
+  final String labelText;
+  final FormFieldValidator<String> validator;
+  final double Function(String value) parseValue;
+
+  @override
+  State<_RequiredAreaDialog> createState() => _RequiredAreaDialogState();
+}
+
+final class _RequiredAreaDialogState extends State<_RequiredAreaDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Text(widget.title),
+        content: Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: widget.labelText,
+              border: const OutlineInputBorder(),
+            ),
+            validator: widget.validator,
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              if (!(_formKey.currentState?.validate() ?? false)) {
+                return;
+              }
+
+              Navigator.of(context).pop(widget.parseValue(_controller.text));
+            },
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
   }
 }
