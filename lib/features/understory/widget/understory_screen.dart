@@ -1105,6 +1105,8 @@ final class _UnderstoryEditableTable extends StatelessWidget {
   }) {
     final rowColor = isSelected
         ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
+        : index.isEven
+        ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.34)
         : Colors.white;
 
     return TableRow(

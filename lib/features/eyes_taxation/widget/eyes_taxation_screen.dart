@@ -143,7 +143,7 @@ final class _TaxationRecordTile extends StatelessWidget {
     final tier = record.tier ?? '-';
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
       borderRadius: borderRadius,
       child: InkWell(
         borderRadius: borderRadius,
@@ -155,20 +155,31 @@ final class _TaxationRecordTile extends StatelessWidget {
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: ClipRRect(
+          borderRadius: borderRadius,
           child: Row(
             children: [
+              ColoredBox(
+                color: theme.colorScheme.primary,
+                child: const SizedBox(width: 5, height: 52),
+              ),
               Expanded(
-                child: Text(
-                  'Ярус $tier',
-                  style: theme.textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'Ярус $tier',
+                    maxLines: 1,
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

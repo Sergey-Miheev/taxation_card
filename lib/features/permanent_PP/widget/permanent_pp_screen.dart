@@ -13,6 +13,56 @@ final class PermanentPpScreen extends StatefulWidget {
   State<PermanentPpScreen> createState() => _PermanentPpScreenState();
 }
 
+final class _HighlightedRecordRow extends StatelessWidget {
+  const _HighlightedRecordRow({
+    required this.text,
+    required this.onDeletePressed,
+  });
+
+  final String text;
+  final VoidCallback? onDeletePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderRadius = BorderRadius.circular(12);
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      borderRadius: borderRadius,
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: Row(
+          children: [
+            ColoredBox(
+              color: theme.colorScheme.primary,
+              child: const SizedBox(width: 5, height: 52),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Удалить',
+              onPressed: onDeletePressed,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 final class _PermanentPpScreenState extends State<PermanentPpScreen>
     with AutomaticKeepAliveClientMixin {
   static const _woodQualityOptions = ['Деловая', 'Полуделовая', 'Дровянная'];
@@ -292,33 +342,12 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
               .map(
                 (record) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                      title: Text(
-                        _formatRecordTitle(record),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        _formatRecordSubtitle(record),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Удалить запись',
-                        onPressed: record.id == null
-                            ? null
-                            : () =>
-                                  _onDeleteRecord(record, selectedProbaInfoId),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ),
+                  child: _HighlightedRecordRow(
+                    text:
+                        '${_formatRecordTitle(record)} • ${_formatRecordSubtitle(record)}',
+                    onDeletePressed: record.id == null
+                        ? null
+                        : () => _onDeleteRecord(record, selectedProbaInfoId),
                   ),
                 ),
               ),

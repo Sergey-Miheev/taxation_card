@@ -519,34 +519,32 @@ final class _SoilRecordTile extends StatelessWidget {
     final borderRadius = BorderRadius.circular(14);
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
       borderRadius: borderRadius,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: ClipRRect(
+        borderRadius: borderRadius,
         child: Row(
           children: [
+            ColoredBox(
+              color: theme.colorScheme.primary,
+              child: const SizedBox(width: 5, height: 52),
+            ),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  [
                     record.soilType,
-                    style: theme.textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+                    'Влажность: ${record.soilMoisture}',
+                    'Мощность: ${record.soilDepth}',
+                    'ГВ: ${_formatNumber(record.groundWaterLevel)} см',
+                  ].join(' • '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    [
-                      'Влажность: ${record.soilMoisture}',
-                      'Мощность: ${record.soilDepth}',
-                      'ГВ: ${_formatNumber(record.groundWaterLevel)} см',
-                    ].join(' • '),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                ),
               ),
             ),
             IconButton(
