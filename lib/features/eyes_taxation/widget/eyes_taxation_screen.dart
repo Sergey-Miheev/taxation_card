@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
-import 'package:taxation_card/features/taxation_characteristic/widget/taxation_characteristic_screen.dart';
 
 final class EyesTaxationScreen extends StatefulWidget {
   const EyesTaxationScreen({super.key});
@@ -13,7 +16,28 @@ final class EyesTaxationScreen extends StatefulWidget {
 
 final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     with AutomaticKeepAliveClientMixin {
+  static const _initialRowCount = 10;
+
+  final List<_TaxationRowData> _rows = [];
   int? _loadedProbaInfoId;
+  bool _isLoading = false;
+  bool _isSavingRows = false;
+  bool _saveAgainRequested = false;
+  var _lastSavedRowsSignature = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _setRows(const []);
+  }
+
+  @override
+  void dispose() {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,165 +46,465 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
       (bloc) => bloc.state.selectedProbaInfoId,
     );
-    _loadRecordsIfNeeded(selectedProbaInfoId);
+    _loadRowsIfNeeded(selectedProbaInfoId);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isTablet = constraints.maxWidth >= 720;
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = constraints.maxWidth >= 720;
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isTablet ? 24 : 16,
-            vertical: 16,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1180),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Глазомерная таксация',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    selectedProbaInfoId == null
-                        ? 'Выберите пробную площадь для добавления записей'
-                        : 'Добавьте таксационные характеристики ярусов',
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTaxationRecordsList(),
-                  const SizedBox(height: 16),
-                  _buildAddButton(selectedProbaInfoId),
-                  const SizedBox(height: 12),
-                ],
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              isTablet ? 12 : 16,
+              16,
+              isTablet ? 12 : 16,
+              16,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1280),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Глазомерная таксация',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      selectedProbaInfoId == null
+                          ? 'Выберите пробную площадь для заполнения таблицы.'
+                          : 'Заполните таксационные характеристики ярусов.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else
+                      _TaxationTable(
+                        rows: _rows,
+                        onSpeciesPressed: _selectSpecies,
+                        onSpeciesCleared: _clearSpecies,
+                        onCellFocusLost: _saveRows,
+                        onOriginChanged: _saveRows,
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   @override
   bool get wantKeepAlive => true;
 
-  Widget _buildTaxationRecordsList() {
-    return BlocBuilder<TaxationCharacteristicBloc, TaxationCharacteristicState>(
-      buildWhen: (previous, current) => previous.records != current.records,
-      builder: (context, state) {
-        if (state.records.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return _SectionCard(
-          title: 'Таксационные записи',
-          child: Column(
-            children: [
-              for (var index = 0; index < state.records.length; index++) ...[
-                _TaxationRecordTile(record: state.records[index]),
-                if (index != state.records.length - 1)
-                  const SizedBox(height: 8),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _loadRecordsIfNeeded(int? selectedProbaInfoId) {
+  void _loadRowsIfNeeded(int? selectedProbaInfoId) {
     if (_loadedProbaInfoId == selectedProbaInfoId) {
       return;
     }
 
     _loadedProbaInfoId = selectedProbaInfoId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
+        return;
+      }
+
+      unawaited(_loadRows(selectedProbaInfoId));
+    });
+  }
+
+  Future<void> _loadRows(int? selectedProbaInfoId) async {
+    if (selectedProbaInfoId == null) {
+      setState(() => _setRows(const []));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final repository = DependenciesScope.of(
+        context,
+      ).taxationCharacteristicRepository;
+      final records = await repository.getByProbaInfoId(selectedProbaInfoId);
+      if (!mounted || _loadedProbaInfoId != selectedProbaInfoId) {
+        return;
+      }
+
+      setState(() => _setRows(records));
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось загрузить таксационные записи.'),
+        ),
+      );
+    } finally {
+      if (mounted && _loadedProbaInfoId == selectedProbaInfoId) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _saveRows() async {
+    if (_isLoading) {
+      return;
+    }
+
+    final selectedProbaInfoId = _loadedProbaInfoId;
     if (selectedProbaInfoId == null) {
       return;
     }
 
-    context.read<TaxationCharacteristicBloc>().add(
-      TaxationCharacteristicEvent.loaded(selectedProbaInfoId),
+    final currentSignature = _rowsSignature();
+    if (currentSignature == _lastSavedRowsSignature) {
+      return;
+    }
+
+    if (_isSavingRows) {
+      _saveAgainRequested = true;
+      return;
+    }
+
+    _isSavingRows = true;
+    try {
+      final records = [
+        for (final row in _rows)
+          if (!row.isEmpty) row.toRecord(probaInfoId: selectedProbaInfoId),
+      ];
+      final repository = DependenciesScope.of(
+        context,
+      ).taxationCharacteristicRepository;
+      await repository.replaceForProbaInfoId(
+        probaInfoId: selectedProbaInfoId,
+        records: records,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _lastSavedRowsSignature = currentSignature;
+    } on Object catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить таксационные записи.'),
+        ),
+      );
+    } finally {
+      _isSavingRows = false;
+      if (_saveAgainRequested) {
+        _saveAgainRequested = false;
+        unawaited(_saveRows());
+      }
+    }
+  }
+
+  Future<void> _selectSpecies(_TaxationRowData row) async {
+    final selectedSpecies = row.speciesController.text.trim();
+    final result = await showSpeciesPickerDialog(
+      context: context,
+      selectedSpecies: selectedSpecies.isEmpty ? null : selectedSpecies,
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() => row.speciesController.text = result);
+    unawaited(_saveRows());
+  }
+
+  void _clearSpecies(_TaxationRowData row) {
+    setState(row.speciesController.clear);
+    unawaited(_saveRows());
+  }
+
+  void _setRows(List<TaxationCharacteristicRecord> records) {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    _rows
+      ..clear()
+      ..addAll(records.map(_TaxationRowData.fromRecord));
+
+    while (_rows.length < _initialRowCount) {
+      _rows.add(_TaxationRowData.empty());
+    }
+    _lastSavedRowsSignature = _rowsSignature();
+  }
+
+  String _rowsSignature() {
+    return _rows.map((row) => row.signature).join('\u001e');
+  }
+}
+
+final class _TaxationTable extends StatelessWidget {
+  const _TaxationTable({
+    required this.rows,
+    required this.onSpeciesPressed,
+    required this.onSpeciesCleared,
+    required this.onCellFocusLost,
+    required this.onOriginChanged,
+  });
+
+  final List<_TaxationRowData> rows;
+  final ValueChanged<_TaxationRowData> onSpeciesPressed;
+  final ValueChanged<_TaxationRowData> onSpeciesCleared;
+  final VoidCallback onCellFocusLost;
+  final VoidCallback onOriginChanged;
+  static const _originOptions = [
+    'семенное естественное',
+    'семенное искусственное',
+    'вегетативное порослевое',
+    'вегетативное корнеотпрысковое',
+    'вегетативное отводковое',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final borderColor = theme.colorScheme.outlineVariant;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {
+              0: FixedColumnWidth(60),
+              1: FixedColumnWidth(120),
+              2: FixedColumnWidth(150),
+              3: FixedColumnWidth(80),
+              4: FixedColumnWidth(80),
+              5: FixedColumnWidth(80),
+              6: FixedColumnWidth(100),
+              7: FixedColumnWidth(70),
+            },
+            border: TableBorder(
+              horizontalInside: BorderSide(color: borderColor),
+              verticalInside: BorderSide(color: borderColor),
+            ),
+            children: [
+              _buildHeaderRow(context),
+              for (var index = 0; index < rows.length; index++)
+                _buildDataRow(context, rows[index], index),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildAddButton(int? selectedProbaInfoId) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: selectedProbaInfoId == null
-            ? null
-            : () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (context) => const TaxationCharacteristicScreen(),
-                  ),
-                );
-              },
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+  TableRow _buildHeaderRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final headers = [
+      '№ яруса',
+      'Состав яруса',
+      'Порода',
+      'Высота, м',
+      'Диаметр, см',
+      'Возраст, лет',
+      'Происхождение',
+      'Класс товарности',
+    ];
+
+    return TableRow(
+      decoration: BoxDecoration(color: theme.colorScheme.primaryContainer),
+      children: [
+        for (final header in headers)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            child: Text(
+              header,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
+      ],
+    );
+  }
+
+  TableRow _buildDataRow(
+    BuildContext context,
+    _TaxationRowData row,
+    int index,
+  ) {
+    final theme = Theme.of(context);
+    final fillColor = index.isEven
+        ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.32)
+        : theme.colorScheme.surface;
+
+    return TableRow(
+      decoration: BoxDecoration(color: fillColor),
+      children: [
+        _TableTextField(
+          controller: row.tierController,
+          isNumber: true,
+          onFocusLost: onCellFocusLost,
         ),
-        child: const Text('Добавить'),
+        _TableTextField(
+          controller: row.compositionController,
+          onFocusLost: onCellFocusLost,
+        ),
+        _SpeciesTableCell(
+          row: row,
+          onPressed: () => onSpeciesPressed(row),
+          onCleared: () => onSpeciesCleared(row),
+        ),
+        _TableTextField(
+          controller: row.heightController,
+          isDecimal: true,
+          onFocusLost: onCellFocusLost,
+        ),
+        _TableTextField(
+          controller: row.diameterController,
+          isDecimal: true,
+          onFocusLost: onCellFocusLost,
+        ),
+        _TableTextField(
+          controller: row.ageController,
+          isNumber: true,
+          onFocusLost: onCellFocusLost,
+        ),
+        _OriginDropdownCell(
+          controller: row.originController,
+          options: _originOptions,
+          onChanged: onOriginChanged,
+        ),
+        _TableTextField(
+          controller: row.merchantabilityClassController,
+          onFocusLost: onCellFocusLost,
+        ),
+      ],
+    );
+  }
+}
+
+final class _OriginDropdownCell extends StatefulWidget {
+  const _OriginDropdownCell({
+    required this.controller,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final List<String> options;
+  final VoidCallback onChanged;
+
+  @override
+  State<_OriginDropdownCell> createState() => _OriginDropdownCellState();
+}
+
+final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = widget.controller.text.trim();
+    final value = widget.options.contains(currentValue) ? currentValue : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        items: [
+          for (final option in widget.options)
+            DropdownMenuItem<String>(
+              value: option,
+              child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: (value) {
+          setState(() => widget.controller.text = value ?? '');
+          widget.onChanged();
+        },
+        decoration: const InputDecoration(
+          isDense: true,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        ),
       ),
     );
   }
 }
 
-final class _TaxationRecordTile extends StatelessWidget {
-  const _TaxationRecordTile({required this.record});
+final class _SpeciesTableCell extends StatelessWidget {
+  const _SpeciesTableCell({
+    required this.row,
+    required this.onPressed,
+    required this.onCleared,
+  });
 
-  final TaxationCharacteristicRecord record;
+  final _TaxationRowData row;
+  final VoidCallback onPressed;
+  final VoidCallback onCleared;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final borderRadius = BorderRadius.circular(14);
-    final tier = record.tier ?? '-';
+    final species = row.speciesController.text.trim();
 
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
-      borderRadius: borderRadius,
-      child: InkWell(
-        borderRadius: borderRadius,
-        onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) =>
-                  TaxationCharacteristicScreen(initialRecord: record),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: SizedBox(
+        height: 48,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
             ),
-          );
-        },
-        child: ClipRRect(
-          borderRadius: borderRadius,
+          ),
           child: Row(
             children: [
-              ColoredBox(
-                color: theme.colorScheme.primary,
-                child: const SizedBox(width: 5, height: 52),
-              ),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Ярус $tier',
-                    maxLines: 1,
-                    style: theme.textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                child: Text(
+                  species.isEmpty ? 'Выбрать' : species,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: species.isEmpty
+                      ? theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        )
+                      : theme.textTheme.bodyMedium,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.chevron_right,
+              if (species.isNotEmpty)
+                IconButton(
+                  tooltip: 'Очистить',
+                  onPressed: onCleared,
+                  icon: const Icon(Icons.close, size: 18),
+                  visualDensity: VisualDensity.compact,
+                )
+              else
+                Icon(
+                  Icons.arrow_drop_down,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ),
             ],
           ),
         ),
@@ -189,28 +513,139 @@ final class _TaxationRecordTile extends StatelessWidget {
   }
 }
 
-final class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
+final class _TableTextField extends StatelessWidget {
+  const _TableTextField({
+    required this.controller,
+    required this.onFocusLost,
+    this.isNumber = false,
+    this.isDecimal = false,
+  });
 
-  final String title;
-  final Widget child;
+  final TextEditingController controller;
+  final VoidCallback onFocusLost;
+  final bool isNumber;
+  final bool isDecimal;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            child,
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: Focus(
+        onFocusChange: (hasFocus) {
+          if (!hasFocus) {
+            onFocusLost();
+          }
+        },
+        child: TextField(
+          controller: controller,
+          keyboardType: isNumber || isDecimal
+              ? TextInputType.numberWithOptions(decimal: isDecimal)
+              : TextInputType.text,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          ),
         ),
       ),
     );
+  }
+}
+
+final class _TaxationRowData {
+  _TaxationRowData({
+    String tier = '',
+    String composition = '',
+    String species = '',
+    String height = '',
+    String diameter = '',
+    String age = '',
+    String origin = '',
+    String merchantabilityClass = '',
+  }) : tierController = TextEditingController(text: tier),
+       compositionController = TextEditingController(text: composition),
+       speciesController = TextEditingController(text: species),
+       heightController = TextEditingController(text: height),
+       diameterController = TextEditingController(text: diameter),
+       ageController = TextEditingController(text: age),
+       originController = TextEditingController(text: origin),
+       merchantabilityClassController = TextEditingController(
+         text: merchantabilityClass,
+       );
+
+  factory _TaxationRowData.empty() => _TaxationRowData();
+
+  factory _TaxationRowData.fromRecord(TaxationCharacteristicRecord record) {
+    return _TaxationRowData(
+      tier: record.tier ?? '',
+      composition: record.compositionCoefficient,
+      species: record.species,
+      height: record.averageHeight,
+      diameter: record.diameter,
+      age: record.age,
+      origin: record.origin,
+      merchantabilityClass: record.merchantabilityClass ?? '',
+    );
+  }
+
+  final TextEditingController tierController;
+  final TextEditingController compositionController;
+  final TextEditingController speciesController;
+  final TextEditingController heightController;
+  final TextEditingController diameterController;
+  final TextEditingController ageController;
+  final TextEditingController originController;
+  final TextEditingController merchantabilityClassController;
+
+  bool get isEmpty {
+    return [
+      tierController,
+      compositionController,
+      speciesController,
+      heightController,
+      diameterController,
+      ageController,
+      originController,
+      merchantabilityClassController,
+    ].every((controller) => controller.text.trim().isEmpty);
+  }
+
+  String get signature {
+    return [
+      tierController,
+      compositionController,
+      speciesController,
+      heightController,
+      diameterController,
+      ageController,
+      originController,
+      merchantabilityClassController,
+    ].map((controller) => controller.text.trim()).join('\u001f');
+  }
+
+  TaxationCharacteristicRecord toRecord({required int probaInfoId}) {
+    return TaxationCharacteristicRecord(
+      probaInfoId: probaInfoId,
+      tier: tierController.text.trim(),
+      compositionCoefficient: compositionController.text.trim(),
+      species: speciesController.text.trim(),
+      averageHeight: heightController.text.trim(),
+      diameter: diameterController.text.trim(),
+      age: ageController.text.trim(),
+      origin: originController.text.trim(),
+      merchantabilityClass: merchantabilityClassController.text.trim(),
+    );
+  }
+
+  void dispose() {
+    tierController.dispose();
+    compositionController.dispose();
+    speciesController.dispose();
+    heightController.dispose();
+    diameterController.dispose();
+    ageController.dispose();
+    originController.dispose();
+    merchantabilityClassController.dispose();
   }
 }

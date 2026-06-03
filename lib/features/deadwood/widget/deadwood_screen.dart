@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -39,7 +39,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   bool _isSelectedDiameterManual = false;
   int? _loadedProbaInfoId;
   double? _deadwoodArea;
-  final Set<int> _promptedDeadwoodAreaIds = {};
+  bool _isSavingDeadwoodArea = false;
 
   @override
   void initState() {
@@ -73,6 +73,8 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
       (bloc) => bloc.state.selectedProbaInfoId,
     );
+    final needsDeadwoodArea =
+        selectedProbaInfoId != null && ((_deadwoodArea ?? 0) <= 0);
     _loadRecordsIfNeeded(selectedProbaInfoId);
 
     return BlocListener<DeadwoodBloc, DeadwoodState>(
@@ -94,36 +96,38 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
         }
       },
       child: Scaffold(
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: BlocBuilder<DeadwoodBloc, DeadwoodState>(
-              builder: (context, state) {
-                final isLoading = state.status == DeadwoodStatus.loading;
+        bottomNavigationBar: needsDeadwoodArea
+            ? null
+            : SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: BlocBuilder<DeadwoodBloc, DeadwoodState>(
+                    builder: (context, state) {
+                      final isLoading = state.status == DeadwoodStatus.loading;
 
-                return FilledButton(
-                  onPressed: isLoading ? null : _onSavePressed,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const SizedBox.square(
-                          dimension: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
+                      return FilledButton(
+                        onPressed: isLoading ? null : _onSavePressed,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        )
-                      : const Text('Сохранить'),
-                );
-              },
-            ),
-          ),
-        ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox.square(
+                                dimension: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Сохранить'),
+                      );
+                    },
+                  ),
+                ),
+              ),
         body: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -137,161 +141,177 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                   label: 'Площадь учёта валёжника',
                   value: _deadwoodArea,
                 ),
-                const SizedBox(height: 16),
-                Text('Порода', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ..._dynamicElements.map((element) {
-                        final isSelected = _selectedSpecies == element;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InputChip(
-                            label: Text(element),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedSpecies = selected ? element : null;
-                              });
-                              context.read<DeadwoodBloc>().add(
-                                DeadwoodEvent.speciesChanged(_selectedSpecies),
-                              );
-                            },
-                            onDeleted: () {
-                              setState(() {
-                                _dynamicElements.remove(element);
-                                if (_selectedSpecies == element) {
-                                  _selectedSpecies = null;
-                                }
-                              });
-                              context.read<DeadwoodBloc>().add(
-                                DeadwoodEvent.speciesChanged(_selectedSpecies),
-                              );
-                            },
-                            showCheckmark: false,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                if ((_deadwoodArea ?? 0) <= 0) ...[
+                  const SizedBox(height: 12),
+                  _AreaSetupForm(
+                    title: 'Площадь учёта валёжника',
+                    labelText: 'Площадь учёта валёжника',
+                    isSaving: _isSavingDeadwoodArea,
+                    onSave: (area) =>
+                        _saveDeadwoodArea(selectedProbaInfoId, area),
+                  ),
+                ],
+                if (!needsDeadwoodArea) ...[
+                  const SizedBox(height: 16),
+                  Text('Порода', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ..._dynamicElements.map((element) {
+                          final isSelected = _selectedSpecies == element;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InputChip(
+                              label: Text(element),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedSpecies = selected ? element : null;
+                                });
+                                context.read<DeadwoodBloc>().add(
+                                  DeadwoodEvent.speciesChanged(
+                                    _selectedSpecies,
+                                  ),
+                                );
+                              },
+                              onDeleted: () {
+                                setState(() {
+                                  _dynamicElements.remove(element);
+                                  if (_selectedSpecies == element) {
+                                    _selectedSpecies = null;
+                                  }
+                                });
+                                context.read<DeadwoodBloc>().add(
+                                  DeadwoodEvent.speciesChanged(
+                                    _selectedSpecies,
+                                  ),
+                                );
+                              },
+                              showCheckmark: false,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: theme
+                                  .colorScheme
+                                  .secondaryContainer
+                                  .withValues(alpha: 0.5),
                             ),
-                            backgroundColor: theme
-                                .colorScheme
-                                .secondaryContainer
-                                .withValues(alpha: 0.5),
+                          );
+                        }),
+                        IconButton.filledTonal(
+                          onPressed: _showSpeciesDialog,
+                          icon: const Icon(Icons.add, size: 20),
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
                           ),
-                        );
-                      }),
-                      IconButton.filledTonal(
-                        onPressed: _showSpeciesDialog,
-                        icon: const Icon(Icons.add, size: 20),
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNumberField(
+                    controller: _lengthController,
+                    labelText: 'Длина, м',
+                    allowDecimal: true,
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Средний диаметр', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  DiameterPicker(
+                    selections: _selectedDiameterNumber == null
+                        ? const []
+                        : [
+                            DiameterPickerSelection(
+                              diameter: _selectedDiameterNumber!,
+                              millimeter: _selectedMillimeterNumber ?? 0,
+                              isManual: _isSelectedDiameterManual,
+                            ),
+                          ],
+                    onDiameterSelected: _toggleDiameterNumber,
+                    onMillimeterSelected: (number) {
+                      setState(() {
+                        _selectedMillimeterNumber = number;
+                      });
+                      _notifyDiameterChanged();
+                    },
+                    onManualSelectionSubmitted: (selection) {
+                      setState(() {
+                        _selectedDiameterNumber = selection.diameter;
+                        _selectedMillimeterNumber = selection.millimeter;
+                        _isSelectedDiameterManual = true;
+                      });
+                      _notifyDiameterChanged();
+                    },
+                    onSelectionRemoved: (_) {
+                      setState(() {
+                        _selectedDiameterNumber = null;
+                        _selectedMillimeterNumber = null;
+                        _isSelectedDiameterManual = false;
+                      });
+                      _notifyDiameterChanged();
+                    },
+                    maxSelections: 1,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildNumberField(
+                          controller: _rotSizeController,
+                          labelText: 'Размер гнили',
+                          allowDecimal: true,
+                          optional: true,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildNumberField(
+                          controller: _rotLengthController,
+                          labelText: 'Длина гнили',
+                          allowDecimal: true,
+                          optional: true,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                _buildNumberField(
-                  controller: _lengthController,
-                  labelText: 'Длина, м',
-                  allowDecimal: true,
-                ),
-                const SizedBox(height: 16),
-                Text('Средний диаметр', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                DiameterPicker(
-                  selections: _selectedDiameterNumber == null
-                      ? const []
-                      : [
-                          DiameterPickerSelection(
-                            diameter: _selectedDiameterNumber!,
-                            millimeter: _selectedMillimeterNumber ?? 0,
-                            isManual: _isSelectedDiameterManual,
-                          ),
-                        ],
-                  onDiameterSelected: _toggleDiameterNumber,
-                  onMillimeterSelected: (number) {
-                    setState(() {
-                      _selectedMillimeterNumber = number;
-                    });
-                    _notifyDiameterChanged();
-                  },
-                  onManualSelectionSubmitted: (selection) {
-                    setState(() {
-                      _selectedDiameterNumber = selection.diameter;
-                      _selectedMillimeterNumber = selection.millimeter;
-                      _isSelectedDiameterManual = true;
-                    });
-                    _notifyDiameterChanged();
-                  },
-                  onSelectionRemoved: (_) {
-                    setState(() {
-                      _selectedDiameterNumber = null;
-                      _selectedMillimeterNumber = null;
-                      _isSelectedDiameterManual = false;
-                    });
-                    _notifyDiameterChanged();
-                  },
-                  maxSelections: 1,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildNumberField(
-                        controller: _rotSizeController,
-                        labelText: 'Размер гнили',
-                        allowDecimal: true,
-                        optional: true,
-                      ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedDecayStage,
+                    decoration: _inputDecoration(
+                      labelText: 'Стадия разложения КДО',
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildNumberField(
-                        controller: _rotLengthController,
-                        labelText: 'Длина гнили',
-                        allowDecimal: true,
-                        optional: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedDecayStage,
-                  decoration: _inputDecoration(
-                    labelText: 'Стадия разложения КДО',
+                    items: _decayStageOptions
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() => _selectedDecayStage = value);
+                      context.read<DeadwoodBloc>().add(
+                        DeadwoodEvent.decayClassChanged(value),
+                      );
+                    },
+                    validator: (value) =>
+                        value == null ? 'Выберите значение' : null,
                   ),
-                  items: _decayStageOptions
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() => _selectedDecayStage = value);
-                    context.read<DeadwoodBloc>().add(
-                      DeadwoodEvent.decayClassChanged(value),
-                    );
-                  },
-                  validator: (value) =>
-                      value == null ? 'Выберите значение' : null,
-                ),
-                const SizedBox(height: 24),
-                BlocBuilder<DeadwoodBloc, DeadwoodState>(
-                  builder: (context, state) {
-                    return _buildRecentRecords(
-                      context: context,
-                      records: state.records,
-                      selectedProbaInfoId: selectedProbaInfoId,
-                    );
-                  },
-                ),
+                  const SizedBox(height: 24),
+                  BlocBuilder<DeadwoodBloc, DeadwoodState>(
+                    builder: (context, state) {
+                      return _buildRecentRecords(
+                        context: context,
+                        records: state.records,
+                        selectedProbaInfoId: selectedProbaInfoId,
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -456,33 +476,28 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       context.read<DeadwoodBloc>().add(
         DeadwoodEvent.loaded(selectedProbaInfoId),
       );
-      unawaited(_showDeadwoodAreaDialogIfNeeded(selectedProbaInfoId));
+      unawaited(_loadDeadwoodArea(selectedProbaInfoId));
     });
   }
 
-  Future<void> _showDeadwoodAreaDialogIfNeeded(int probaInfoId) async {
-    if (_promptedDeadwoodAreaIds.contains(probaInfoId)) {
-      return;
-    }
-
-    _promptedDeadwoodAreaIds.add(probaInfoId);
+  Future<void> _loadDeadwoodArea(int probaInfoId) async {
     final repository = DependenciesScope.of(context).probaInfoRepository;
     final probaInfo = await repository.getById(probaInfoId);
     if (mounted && _loadedProbaInfoId == probaInfoId) {
       setState(() => _deadwoodArea = probaInfo?.deadwoodArea);
     }
+  }
 
-    if (!mounted ||
-        probaInfo == null ||
-        probaInfo.deadwoodArea > 0 ||
-        _loadedProbaInfoId != probaInfoId) {
+  Future<void> _saveDeadwoodArea(int? probaInfoId, double area) async {
+    if (probaInfoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сначала выберите пробную площадь.')),
+      );
       return;
     }
 
-    final area = await _showDeadwoodAreaDialog();
-    if (!mounted || area == null || _loadedProbaInfoId != probaInfoId) {
-      return;
-    }
+    setState(() => _isSavingDeadwoodArea = true);
+    final repository = DependenciesScope.of(context).probaInfoRepository;
 
     try {
       await repository.updateDeadwoodArea(id: probaInfoId, area: area);
@@ -499,27 +514,16 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
         return;
       }
 
-      _promptedDeadwoodAreaIds.remove(probaInfoId);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Не удалось сохранить площадь учёта валёжника.'),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingDeadwoodArea = false);
+      }
     }
-  }
-
-  Future<double?> _showDeadwoodAreaDialog() {
-    return showDialog<double>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => _RequiredAreaDialog(
-        title: 'Площадь учёта валёжника',
-        labelText: 'Площадь учёта валёжника',
-        validator: (value) =>
-            _validatePositiveNumber(value, allowDecimal: true),
-        parseValue: _parseRequiredDouble,
-      ),
-    );
   }
 
   void _toggleDiameterNumber(int number) {
@@ -726,65 +730,110 @@ final class _HighlightedRecordRow extends StatelessWidget {
   }
 }
 
-final class _RequiredAreaDialog extends StatefulWidget {
-  const _RequiredAreaDialog({
+final class _AreaSetupForm extends StatefulWidget {
+  const _AreaSetupForm({
     required this.title,
     required this.labelText,
-    required this.validator,
-    required this.parseValue,
+    required this.isSaving,
+    required this.onSave,
   });
 
   final String title;
   final String labelText;
-  final FormFieldValidator<String> validator;
-  final double Function(String value) parseValue;
+  final bool isSaving;
+  final void Function(double area) onSave;
 
   @override
-  State<_RequiredAreaDialog> createState() => _RequiredAreaDialogState();
+  State<_AreaSetupForm> createState() => _AreaSetupFormState();
 }
 
-final class _RequiredAreaDialogState extends State<_RequiredAreaDialog> {
+final class _AreaSetupFormState extends State<_AreaSetupForm> {
   final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController();
+  final _areaController = TextEditingController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _areaController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: AlertDialog(
-        title: Text(widget.title),
-        content: Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _controller,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: widget.labelText,
-              border: const OutlineInputBorder(),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _areaController,
+                    enabled: !widget.isSaving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: widget.labelText,
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: _validatePositiveNumber,
+                    onFieldSubmitted: (_) => _onSavePressed(),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: widget.isSaving ? null : _onSavePressed,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: widget.isSaving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Сохранить'),
+                  ),
+                ],
+              ),
             ),
-            validator: widget.validator,
           ),
         ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              if (!(_formKey.currentState?.validate() ?? false)) {
-                return;
-              }
-
-              Navigator.of(context).pop(widget.parseValue(_controller.text));
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
       ),
     );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    widget.onSave(double.parse(_normalizeNumber(_areaController.text)));
+  }
+
+  String? _validatePositiveNumber(String? value) {
+    final parsedValue = double.tryParse(_normalizeNumber(value ?? ''));
+    if (parsedValue == null) {
+      return 'Введите корректное число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String _normalizeNumber(String value) {
+    return value.trim().replaceAll(',', '.');
   }
 }

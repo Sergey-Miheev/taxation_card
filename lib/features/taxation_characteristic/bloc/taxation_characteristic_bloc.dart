@@ -90,16 +90,18 @@ final class TaxationCharacteristicRecord {
     required this.age,
     required this.averageHeight,
     required this.diameter,
-    required this.density,
-    required this.plantationsTotal,
-    required this.coniferousTotal,
-    required this.dryStanding,
-    required this.nonLiquidWood,
-    required this.canopyClosure,
-    required this.sparseness,
-    required this.commercialWoodOutput,
     required this.merchantabilityClass,
     required this.probaInfoId,
+    this.species = '',
+    this.origin = '',
+    this.density = '',
+    this.plantationsTotal = '',
+    this.coniferousTotal = '',
+    this.dryStanding = '',
+    this.nonLiquidWood = '',
+    this.canopyClosure = '',
+    this.sparseness = '',
+    this.commercialWoodOutput = '',
     this.id,
   });
 
@@ -107,9 +109,11 @@ final class TaxationCharacteristicRecord {
   final int probaInfoId;
   final String? tier;
   final String compositionCoefficient;
+  final String species;
   final String age;
   final String averageHeight;
   final String diameter;
+  final String origin;
   final String density;
   final String plantationsTotal;
   final String coniferousTotal;

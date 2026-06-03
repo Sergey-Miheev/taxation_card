@@ -106,7 +106,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
   int? _activeDiameterIndex;
   int? _loadedProbaInfoId;
   double? _stumpsAccountingArea;
-  final Set<int> _promptedStumpsAccountingAreaIds = {};
+  bool _isSavingStumpsAccountingArea = false;
 
   @override
   void initState() {
@@ -140,6 +140,8 @@ final class _StumpsScreenState extends State<StumpsScreen>
     final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
       (bloc) => bloc.state.selectedProbaInfoId,
     );
+    final needsStumpsAccountingArea =
+        selectedProbaInfoId != null && ((_stumpsAccountingArea ?? 0) <= 0);
     _loadRecordsIfNeeded(selectedProbaInfoId);
 
     return BlocListener<StumpsBloc, StumpsState>(
@@ -161,36 +163,38 @@ final class _StumpsScreenState extends State<StumpsScreen>
         }
       },
       child: Scaffold(
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: BlocBuilder<StumpsBloc, StumpsState>(
-              builder: (context, state) {
-                final isLoading = state.status == StumpsStatus.loading;
+        bottomNavigationBar: needsStumpsAccountingArea
+            ? null
+            : SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: BlocBuilder<StumpsBloc, StumpsState>(
+                    builder: (context, state) {
+                      final isLoading = state.status == StumpsStatus.loading;
 
-                return FilledButton(
-                  onPressed: isLoading ? null : _onSavePressed,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const SizedBox.square(
-                          dimension: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
+                      return FilledButton(
+                        onPressed: isLoading ? null : _onSavePressed,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        )
-                      : const Text('Сохранить'),
-                );
-              },
-            ),
-          ),
-        ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox.square(
+                                dimension: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Сохранить'),
+                      );
+                    },
+                  ),
+                ),
+              ),
         body: Form(
           key: _formKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -204,136 +208,148 @@ final class _StumpsScreenState extends State<StumpsScreen>
                   label: 'Площадь учёта пней',
                   value: _stumpsAccountingArea,
                 ),
-                const SizedBox(height: 16),
-                Text('Порода', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      ..._dynamicElements.map((element) {
-                        final isSelected = _selectedSpecies == element;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InputChip(
-                            label: Text(element),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedSpecies = selected ? element : null;
-                              });
-                              context.read<StumpsBloc>().add(
-                                StumpsEvent.speciesChanged(_selectedSpecies),
-                              );
-                            },
-                            onDeleted: () {
-                              setState(() {
-                                _dynamicElements.remove(element);
-                                if (_selectedSpecies == element) {
-                                  _selectedSpecies = null;
-                                }
-                              });
-                              context.read<StumpsBloc>().add(
-                                StumpsEvent.speciesChanged(_selectedSpecies),
-                              );
-                            },
-                            showCheckmark: false,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                if ((_stumpsAccountingArea ?? 0) <= 0) ...[
+                  const SizedBox(height: 12),
+                  _AreaSetupForm(
+                    title: 'Площадь учёта пней',
+                    labelText: 'Площадь учёта пней',
+                    isSaving: _isSavingStumpsAccountingArea,
+                    onSave: (area) =>
+                        _saveStumpsAccountingArea(selectedProbaInfoId, area),
+                  ),
+                ],
+                if (!needsStumpsAccountingArea) ...[
+                  const SizedBox(height: 16),
+                  Text('Порода', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ..._dynamicElements.map((element) {
+                          final isSelected = _selectedSpecies == element;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InputChip(
+                              label: Text(element),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedSpecies = selected ? element : null;
+                                });
+                                context.read<StumpsBloc>().add(
+                                  StumpsEvent.speciesChanged(_selectedSpecies),
+                                );
+                              },
+                              onDeleted: () {
+                                setState(() {
+                                  _dynamicElements.remove(element);
+                                  if (_selectedSpecies == element) {
+                                    _selectedSpecies = null;
+                                  }
+                                });
+                                context.read<StumpsBloc>().add(
+                                  StumpsEvent.speciesChanged(_selectedSpecies),
+                                );
+                              },
+                              showCheckmark: false,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              backgroundColor: theme
+                                  .colorScheme
+                                  .secondaryContainer
+                                  .withValues(alpha: 0.5),
                             ),
-                            backgroundColor: theme
-                                .colorScheme
-                                .secondaryContainer
-                                .withValues(alpha: 0.5),
+                          );
+                        }),
+                        IconButton.filledTonal(
+                          onPressed: _showSpeciesDialog,
+                          icon: const Icon(Icons.add, size: 20),
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
                           ),
-                        );
-                      }),
-                      IconButton.filledTonal(
-                        onPressed: _showSpeciesDialog,
-                        icon: const Icon(Icons.add, size: 20),
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Диаметр пня', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  _DiameterPurposeLabel(selections: _selectedDiameters),
+                  const SizedBox(height: 8),
+                  DiameterPicker(
+                    selections: _selectedDiameters,
+                    activeSelectionIndex: _activeDiameterIndex,
+                    onDiameterSelected: _onDiameterSelected,
+                    onMillimeterSelected: _onMillimeterSelected,
+                    onManualSelectionSubmitted: _onManualDiameterSubmitted,
+                    onSelectionRemoved: _onDiameterRemoved,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNumberField(
+                    controller: _stumpHeightController,
+                    labelText: 'Высота пня',
+                    allowDecimal: true,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildNumberField(
+                          controller: _rotSizeController,
+                          labelText: 'Размер гнили, см',
+                          allowDecimal: true,
+                          optional: true,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildNumberField(
+                          controller: _rotLengthController,
+                          labelText: 'Длина гнили, м',
+                          allowDecimal: true,
+                          optional: true,
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text('Диаметр пня', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                _DiameterPurposeLabel(selections: _selectedDiameters),
-                const SizedBox(height: 8),
-                DiameterPicker(
-                  selections: _selectedDiameters,
-                  activeSelectionIndex: _activeDiameterIndex,
-                  onDiameterSelected: _onDiameterSelected,
-                  onMillimeterSelected: _onMillimeterSelected,
-                  onManualSelectionSubmitted: _onManualDiameterSubmitted,
-                  onSelectionRemoved: _onDiameterRemoved,
-                ),
-                const SizedBox(height: 16),
-                _buildNumberField(
-                  controller: _stumpHeightController,
-                  labelText: 'Высота пня',
-                  allowDecimal: true,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildNumberField(
-                        controller: _rotSizeController,
-                        labelText: 'Размер гнили, см',
-                        allowDecimal: true,
-                        optional: true,
-                      ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedDecayStage,
+                    decoration: _inputDecoration(
+                      labelText: 'Стадия разложения КДО',
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildNumberField(
-                        controller: _rotLengthController,
-                        labelText: 'Длина гнили, м',
-                        allowDecimal: true,
-                        optional: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedDecayStage,
-                  decoration: _inputDecoration(
-                    labelText: 'Стадия разложения КДО',
+                    items: _decayStageOptions
+                        .map(
+                          (item) =>
+                              DropdownMenuItem(value: item, child: Text(item)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() => _selectedDecayStage = value);
+                      context.read<StumpsBloc>().add(
+                        StumpsEvent.decayClassChanged(value),
+                      );
+                    },
+                    validator: (value) =>
+                        value == null ? 'Выберите значение' : null,
                   ),
-                  items: _decayStageOptions
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setState(() => _selectedDecayStage = value);
-                    context.read<StumpsBloc>().add(
-                      StumpsEvent.decayClassChanged(value),
-                    );
-                  },
-                  validator: (value) =>
-                      value == null ? 'Выберите значение' : null,
-                ),
-                const SizedBox(height: 24),
-                BlocBuilder<StumpsBloc, StumpsState>(
-                  builder: (context, state) {
-                    return _buildRecentRecords(
-                      context: context,
-                      records: state.records,
-                      selectedProbaInfoId: selectedProbaInfoId,
-                    );
-                  },
-                ),
+                  const SizedBox(height: 24),
+                  BlocBuilder<StumpsBloc, StumpsState>(
+                    builder: (context, state) {
+                      return _buildRecentRecords(
+                        context: context,
+                        records: state.records,
+                        selectedProbaInfoId: selectedProbaInfoId,
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -496,33 +512,28 @@ final class _StumpsScreenState extends State<StumpsScreen>
       }
 
       context.read<StumpsBloc>().add(StumpsEvent.loaded(selectedProbaInfoId));
-      unawaited(_showStumpsAccountingAreaDialogIfNeeded(selectedProbaInfoId));
+      unawaited(_loadStumpsAccountingArea(selectedProbaInfoId));
     });
   }
 
-  Future<void> _showStumpsAccountingAreaDialogIfNeeded(int probaInfoId) async {
-    if (_promptedStumpsAccountingAreaIds.contains(probaInfoId)) {
-      return;
-    }
-
-    _promptedStumpsAccountingAreaIds.add(probaInfoId);
+  Future<void> _loadStumpsAccountingArea(int probaInfoId) async {
     final repository = DependenciesScope.of(context).probaInfoRepository;
     final probaInfo = await repository.getById(probaInfoId);
     if (mounted && _loadedProbaInfoId == probaInfoId) {
       setState(() => _stumpsAccountingArea = probaInfo?.stumpsAccountingArea);
     }
+  }
 
-    if (!mounted ||
-        probaInfo == null ||
-        probaInfo.stumpsAccountingArea > 0 ||
-        _loadedProbaInfoId != probaInfoId) {
+  Future<void> _saveStumpsAccountingArea(int? probaInfoId, double area) async {
+    if (probaInfoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сначала выберите пробную площадь.')),
+      );
       return;
     }
 
-    final area = await _showStumpsAccountingAreaDialog();
-    if (!mounted || area == null || _loadedProbaInfoId != probaInfoId) {
-      return;
-    }
+    setState(() => _isSavingStumpsAccountingArea = true);
+    final repository = DependenciesScope.of(context).probaInfoRepository;
 
     try {
       await repository.updateStumpsAccountingArea(id: probaInfoId, area: area);
@@ -539,27 +550,16 @@ final class _StumpsScreenState extends State<StumpsScreen>
         return;
       }
 
-      _promptedStumpsAccountingAreaIds.remove(probaInfoId);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Не удалось сохранить площадь учёта пней.'),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingStumpsAccountingArea = false);
+      }
     }
-  }
-
-  Future<double?> _showStumpsAccountingAreaDialog() {
-    return showDialog<double>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => _RequiredAreaDialog(
-        title: 'Площадь учёта пней',
-        labelText: 'Площадь учёта пней',
-        validator: (value) =>
-            _validatePositiveNumber(value, allowDecimal: true),
-        parseValue: _parseRequiredDouble,
-      ),
-    );
   }
 
   void _onDiameterSelected(int number) {
@@ -852,65 +852,110 @@ final class _HighlightedRecordRow extends StatelessWidget {
   }
 }
 
-final class _RequiredAreaDialog extends StatefulWidget {
-  const _RequiredAreaDialog({
+final class _AreaSetupForm extends StatefulWidget {
+  const _AreaSetupForm({
     required this.title,
     required this.labelText,
-    required this.validator,
-    required this.parseValue,
+    required this.isSaving,
+    required this.onSave,
   });
 
   final String title;
   final String labelText;
-  final FormFieldValidator<String> validator;
-  final double Function(String value) parseValue;
+  final bool isSaving;
+  final void Function(double area) onSave;
 
   @override
-  State<_RequiredAreaDialog> createState() => _RequiredAreaDialogState();
+  State<_AreaSetupForm> createState() => _AreaSetupFormState();
 }
 
-final class _RequiredAreaDialogState extends State<_RequiredAreaDialog> {
+final class _AreaSetupFormState extends State<_AreaSetupForm> {
   final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController();
+  final _areaController = TextEditingController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _areaController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: AlertDialog(
-        title: Text(widget.title),
-        content: Form(
-          key: _formKey,
-          child: TextFormField(
-            controller: _controller,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: widget.labelText,
-              border: const OutlineInputBorder(),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _areaController,
+                    enabled: !widget.isSaving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: widget.labelText,
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: _validatePositiveNumber,
+                    onFieldSubmitted: (_) => _onSavePressed(),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: widget.isSaving ? null : _onSavePressed,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                    child: widget.isSaving
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Сохранить'),
+                  ),
+                ],
+              ),
             ),
-            validator: widget.validator,
           ),
         ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              if (!(_formKey.currentState?.validate() ?? false)) {
-                return;
-              }
-
-              Navigator.of(context).pop(widget.parseValue(_controller.text));
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
       ),
     );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    widget.onSave(double.parse(_normalizeNumber(_areaController.text)));
+  }
+
+  String? _validatePositiveNumber(String? value) {
+    final parsedValue = double.tryParse(_normalizeNumber(value ?? ''));
+    if (parsedValue == null) {
+      return 'Введите корректное число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String _normalizeNumber(String value) {
+    return value.trim().replaceAll(',', '.');
   }
 }

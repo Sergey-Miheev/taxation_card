@@ -33,6 +33,23 @@ final class TaxationCharacteristicRepository {
     );
   }
 
+  Future<void> replaceForProbaInfoId({
+    required int probaInfoId,
+    required List<TaxationCharacteristicRecord> records,
+  }) {
+    return _database.transaction((transaction) async {
+      await transaction.delete(
+        'eyes_taxation',
+        where: 'proba_info_id = ?',
+        whereArgs: [probaInfoId],
+      );
+
+      for (final record in records) {
+        await transaction.insert('eyes_taxation', _toRow(record));
+      }
+    });
+  }
+
   Future<String> buildCsv(int probaInfoId) async {
     final records = await getByProbaInfoId(probaInfoId);
     final buffer = StringBuffer('\uFEFF')
@@ -40,19 +57,13 @@ final class TaxationCharacteristicRepository {
         [
           'id',
           'proba_info_id',
-          'Ярус',
-          'Коэффициент состава',
-          'Возраст',
-          'Средняя высота, м',
+          'Номер яруса',
+          'Состав яруса',
+          'Порода',
+          'Высота, м',
           'Диаметр, см',
-          'Полнота',
-          'Лесные насаждения: Всего',
-          'В том числе усыхающих',
-          'Сухостой',
-          'Неликвидная древесина',
-          'Сомкнутость',
-          'Изреженность',
-          '% выхода деловой древесины',
+          'Возраст, лет',
+          'Происхождение',
           'Класс товарности',
         ].map(_escapeCsvValue).join(';'),
       );
@@ -64,17 +75,11 @@ final class TaxationCharacteristicRepository {
           record.probaInfoId.toString(),
           record.tier ?? '',
           record.compositionCoefficient,
-          record.age,
+          record.species,
           record.averageHeight,
           record.diameter,
-          record.density,
-          record.plantationsTotal,
-          record.coniferousTotal,
-          record.dryStanding,
-          record.nonLiquidWood,
-          record.canopyClosure,
-          record.sparseness,
-          record.commercialWoodOutput,
+          record.age,
+          record.origin,
           record.merchantabilityClass ?? '',
         ].map(_escapeCsvValue).join(';'),
       );
@@ -83,36 +88,22 @@ final class TaxationCharacteristicRepository {
     return buffer.toString();
   }
 
-  double _parseDouble(String value) {
-    return double.parse(value.trim().replaceAll(',', '.'));
-  }
-
-  int _parseInt(String value) {
-    return int.parse(value.trim());
-  }
-
   TaxationCharacteristicRecord _recordFromRow(Map<String, Object?> row) {
     return TaxationCharacteristicRecord(
       id: row['id'] as int?,
       probaInfoId: (row['proba_info_id'] as int?)!,
       tier: row['tier'].toString(),
-      compositionCoefficient: _stringifyNumber(row['composition_coefficient']),
+      compositionCoefficient: _stringifyValue(row['composition_coefficient']),
+      species: row['species']?.toString() ?? '',
       age: row['age'].toString(),
-      averageHeight: _stringifyNumber(row['average_height']),
-      diameter: _stringifyNumber(row['diameter']),
-      density: _stringifyNumber(row['density']),
-      plantationsTotal: row['plantations_total'].toString(),
-      coniferousTotal: row['coniferous_total'].toString(),
-      dryStanding: _stringifyNumber(row['dry_standing']),
-      nonLiquidWood: _stringifyNumber(row['non_liquid_wood']),
-      canopyClosure: _stringifyNumber(row['canopy_closure']),
-      sparseness: _stringifyNumber(row['sparseness']),
-      commercialWoodOutput: _stringifyNumber(row['commercial_wood_output']),
+      averageHeight: _stringifyValue(row['average_height']),
+      diameter: _stringifyValue(row['diameter']),
+      origin: row['origin']?.toString() ?? '',
       merchantabilityClass: row['merchantability_class'].toString(),
     );
   }
 
-  String _stringifyNumber(Object? value) {
+  String _stringifyValue(Object? value) {
     if (value is int) {
       return value.toString();
     }
@@ -127,21 +118,33 @@ final class TaxationCharacteristicRepository {
   Map<String, Object?> _toRow(TaxationCharacteristicRecord record) {
     return {
       'proba_info_id': record.probaInfoId,
-      'tier': _parseInt(record.tier!),
-      'composition_coefficient': _parseDouble(record.compositionCoefficient),
-      'age': _parseInt(record.age),
-      'average_height': _parseDouble(record.averageHeight),
-      'diameter': _parseDouble(record.diameter),
-      'density': _parseDouble(record.density),
-      'plantations_total': _parseInt(record.plantationsTotal),
-      'coniferous_total': _parseInt(record.coniferousTotal),
-      'dry_standing': _parseDouble(record.dryStanding),
-      'non_liquid_wood': _parseDouble(record.nonLiquidWood),
-      'canopy_closure': _parseDouble(record.canopyClosure),
-      'sparseness': _parseDouble(record.sparseness),
-      'commercial_wood_output': _parseDouble(record.commercialWoodOutput),
-      'merchantability_class': record.merchantabilityClass,
+      'tier': _parseIntOrZero(record.tier),
+      'composition_coefficient': record.compositionCoefficient.trim(),
+      'species': record.species.trim(),
+      'age': _parseIntOrZero(record.age),
+      'average_height': _parseDoubleOrZero(record.averageHeight),
+      'diameter': _parseDoubleOrZero(record.diameter),
+      'origin': record.origin.trim(),
+      'merchantability_class': record.merchantabilityClass?.trim() ?? '',
     };
+  }
+
+  double _parseDoubleOrZero(String? value) {
+    final normalized = value?.trim().replaceAll(',', '.') ?? '';
+    if (normalized.isEmpty) {
+      return 0;
+    }
+
+    return double.tryParse(normalized) ?? 0;
+  }
+
+  int _parseIntOrZero(String? value) {
+    final normalized = value?.trim() ?? '';
+    if (normalized.isEmpty) {
+      return 0;
+    }
+
+    return int.tryParse(normalized) ?? 0;
   }
 
   String _escapeCsvValue(String value) {
