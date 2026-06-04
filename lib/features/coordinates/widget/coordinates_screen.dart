@@ -59,14 +59,37 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        AspectRatio(
-                          aspectRatio: 1,
-                          child: _CoordinateSquare(
-                            selectedPoint: _selectedPoint,
-                            onPointSelected: (point) {
-                              setState(() => _selectedPoint = point);
-                            },
-                          ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isCompact = constraints.maxWidth < 420;
+                            final arrowWidth = isCompact ? 64.0 : 84.0;
+                            final gap = isCompact ? 10.0 : 16.0;
+                            final squareSize =
+                                constraints.maxWidth - arrowWidth - gap;
+
+                            return SizedBox(
+                              height: squareSize,
+                              child: Row(
+                                children: [
+                                  SizedBox.square(
+                                    dimension: squareSize,
+                                    child: _CoordinateSquare(
+                                      selectedPoint: _selectedPoint,
+                                      onPointSelected: (point) {
+                                        setState(() => _selectedPoint = point);
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(width: gap),
+                                  SizedBox(
+                                    width: arrowWidth,
+                                    height: squareSize,
+                                    child: const _NorthSouthArrow(),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         Card(
@@ -359,6 +382,91 @@ final class _CoordinatesScreenState extends State<CoordinatesScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+final class _NorthSouthArrow extends StatelessWidget {
+  const _NorthSouthArrow();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.primary;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned.fill(
+          top: 28,
+          bottom: 28,
+          child: CustomPaint(painter: _NorthArrowPainter(color: color)),
+        ),
+        Align(
+          alignment: Alignment.topCenter,
+          child: Text(
+            'Север',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Text(
+            'Юг',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+final class _NorthArrowPainter extends CustomPainter {
+  const _NorthArrowPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerX = size.width / 2;
+    final arrowTop = size.height * 0.08;
+    final arrowBottom = size.height * 0.9;
+    final headHeight = size.height * 0.18;
+    final headWidth = size.width * 0.68;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 8;
+
+    canvas.drawLine(
+      Offset(centerX, arrowBottom),
+      Offset(centerX, arrowTop + headHeight * 0.65),
+      paint,
+    );
+
+    final headPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final headPath = Path()
+      ..moveTo(centerX, arrowTop)
+      ..lineTo(centerX - headWidth / 2, arrowTop + headHeight)
+      ..lineTo(centerX + headWidth / 2, arrowTop + headHeight)
+      ..close();
+
+    canvas.drawPath(headPath, headPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _NorthArrowPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 

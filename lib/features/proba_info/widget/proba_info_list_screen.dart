@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:taxation_card/core/router/routes.dart';
+import 'package:taxation_card/features/app/app_runner.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
@@ -16,6 +17,8 @@ final class ProbaInfoListScreen extends StatefulWidget {
 
 final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
   late Future<List<ProbaInfoRecord>> _recordsFuture;
+  var _isExportingDatabase = false;
+  var _isImportingDatabase = false;
 
   @override
   void initState() {
@@ -28,7 +31,10 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Пробные площади')),
+      appBar: AppBar(
+        title: const Text('Пробные площади'),
+        actions: [_buildAppBarActions()],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isTablet = constraints.maxWidth >= 720;
@@ -63,6 +69,77 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAppBarActions() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showText = MediaQuery.sizeOf(context).width >= 560;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAppBarAction(
+              isLoading: _isImportingDatabase,
+              icon: Icons.file_download_outlined,
+              label: 'Импорт',
+              tooltip: 'Импортировать базу данных',
+              onPressed: _confirmAndImportDatabase,
+              showText: showText,
+            ),
+            _buildAppBarAction(
+              isLoading: _isExportingDatabase,
+              icon: Icons.file_upload_outlined,
+              label: 'Экспорт',
+              tooltip: 'Экспортировать базу данных',
+              onPressed: _confirmAndExportDatabase,
+              showText: showText,
+            ),
+            const SizedBox(width: 4),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAppBarAction({
+    required bool isLoading,
+    required IconData icon,
+    required String label,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required bool showText,
+  }) {
+    if (isLoading) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: showText ? 20 : 16),
+        child: const SizedBox.square(
+          dimension: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (!showText) {
+      return IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        tooltip: tooltip,
+        color: Theme.of(context).appBarTheme.foregroundColor,
+      );
+    }
+
+    final appBarForegroundColor = Theme.of(context).appBarTheme.foregroundColor;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(label),
+        style: TextButton.styleFrom(foregroundColor: appBarForegroundColor),
       ),
     );
   }
@@ -163,6 +240,128 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
       ..add(MainTabsEvent.probaInfoSelected(id))
       ..add(const MainTabsEvent.tabSelected(MainTab.eyesTaxation));
     await context.pushNamed(AppRoutes.home.name);
+  }
+
+  Future<void> _exportDatabase() async {
+    setState(() {
+      _isExportingDatabase = true;
+    });
+
+    try {
+      final exportedPath = await DependenciesScope.of(
+        context,
+      ).databaseExporter.exportToSelectedDirectory();
+      if (!mounted || exportedPath == null) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('База данных экспортирована: $exportedPath')),
+      );
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось экспортировать базу данных')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExportingDatabase = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirmAndExportDatabase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Экспорт базы данных'),
+          content: const Text(
+            'Текущая база данных будет сохранена в выбранное место.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Экспортировать'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    await _exportDatabase();
+  }
+
+  Future<void> _confirmAndImportDatabase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Импорт базы данных'),
+          content: const Text(
+            'Выбранная база станет текущей рабочей базой приложения.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Импортировать'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    await _importDatabase();
+  }
+
+  Future<void> _importDatabase() async {
+    setState(() {
+      _isImportingDatabase = true;
+    });
+
+    try {
+      final imported = await DependenciesScope.of(
+        context,
+      ).databaseExporter.importFromSelectedFile();
+      if (!mounted || !imported) {
+        return;
+      }
+
+      await const AppRunner().initializeAndRun();
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось импортировать базу данных')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImportingDatabase = false;
+        });
+      }
+    }
   }
 }
 

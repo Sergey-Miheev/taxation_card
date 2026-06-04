@@ -102,7 +102,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
   final List<DiameterPickerSelection> _selectedDiameters = [];
 
   String? _selectedSpecies;
-  String? _selectedDecayStage = _decayStageOptions.first;
+  String? _selectedDecayStage;
   int? _activeDiameterIndex;
   int? _loadedProbaInfoId;
   double? _stumpsAccountingArea;
@@ -114,9 +114,6 @@ final class _StumpsScreenState extends State<StumpsScreen>
     _stumpHeightController.addListener(_onStumpHeightChanged);
     _rotSizeController.addListener(_onRotSizeChanged);
     _rotLengthController.addListener(_onRotLengthChanged);
-    context.read<StumpsBloc>().add(
-      StumpsEvent.decayClassChanged(_decayStageOptions.first),
-    );
   }
 
   @override
@@ -695,6 +692,14 @@ final class _StumpsScreenState extends State<StumpsScreen>
       return;
     }
 
+    final selectedDecayStage = _selectedDecayStage;
+    if (selectedDecayStage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите стадию разложения КДО.')),
+      );
+      return;
+    }
+
     final selectedProbaInfoId = context
         .read<MainTabsBloc>()
         .state
@@ -716,7 +721,7 @@ final class _StumpsScreenState extends State<StumpsScreen>
       rootCollarMillimeter: _selectedDiameters[1].millimeter,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
-      decayStage: _selectedDecayStage!,
+      decayStage: selectedDecayStage,
     );
 
     context.read<StumpsBloc>().add(StumpsEvent.saved(record));

@@ -33,7 +33,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   final List<String> _dynamicElements = [];
 
   String? _selectedSpecies;
-  String? _selectedDecayStage = _decayStageOptions.first;
+  String? _selectedDecayStage;
   int? _selectedDiameterNumber;
   int? _selectedMillimeterNumber;
   bool _isSelectedDiameterManual = false;
@@ -47,9 +47,6 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     _lengthController.addListener(_onLengthChanged);
     _rotSizeController.addListener(_onRotSizeChanged);
     _rotLengthController.addListener(_onRotLengthChanged);
-    context.read<DeadwoodBloc>().add(
-      DeadwoodEvent.decayClassChanged(_decayStageOptions.first),
-    );
   }
 
   @override
@@ -584,6 +581,14 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       return;
     }
 
+    final selectedDecayStage = _selectedDecayStage;
+    if (selectedDecayStage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите стадию разложения КДО.')),
+      );
+      return;
+    }
+
     final selectedProbaInfoId = context
         .read<MainTabsBloc>()
         .state
@@ -603,7 +608,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       millimeter: _selectedMillimeterNumber ?? 0,
       rotSize: _parseOptionalDouble(_rotSizeController.text),
       rotLength: _parseOptionalDouble(_rotLengthController.text),
-      decayStage: _selectedDecayStage!,
+      decayStage: selectedDecayStage,
     );
 
     context.read<DeadwoodBloc>().add(DeadwoodEvent.saved(record));

@@ -335,7 +335,12 @@ CREATE TABLE IF NOT EXISTS soils (
   }
 
   Future<void> close() async {
-    final db = await instance.database;
+    final db = _database;
+    if (db == null) {
+      return;
+    }
+
     await db.close();
+    _database = null;
   }
 }

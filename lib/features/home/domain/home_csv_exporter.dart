@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -11,7 +12,7 @@ final class HomeCsvExporter {
 
   Future<int?> exportProbaInfoData(int probaInfoId) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    var exportedFilesCount = 0;
+    final archive = Archive();
 
     for (final table in _tables) {
       final rows = await _database.query(
@@ -23,19 +24,19 @@ final class HomeCsvExporter {
       );
       final csv = _buildCsv(headers: table.headers, rows: rows);
       final fileName = '${table.name}_${probaInfoId}_$timestamp.csv';
-      final savedPath = await FilePicker.saveFile(
-        dialogTitle: 'Сохраните $fileName',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: const ['csv'],
-        bytes: Uint8List.fromList(utf8.encode(csv)),
-      );
-      if (savedPath != null) {
-        exportedFilesCount++;
-      }
+      archive.addFile(ArchiveFile.bytes(fileName, utf8.encode(csv)));
     }
 
-    return exportedFilesCount;
+    final archiveBytes = ZipEncoder().encodeBytes(archive);
+    final savedPath = await FilePicker.saveFile(
+      dialogTitle: 'Сохраните архив CSV',
+      fileName: 'taxation_card_${probaInfoId}_$timestamp.zip',
+      type: FileType.custom,
+      allowedExtensions: const ['zip'],
+      bytes: Uint8List.fromList(archiveBytes),
+    );
+
+    return savedPath == null ? null : _tables.length;
   }
 
   String _buildCsv({

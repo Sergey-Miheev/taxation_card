@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:talker_bloc_logger/talker_bloc_logger_observer.dart';
+import 'package:taxation_card/core/database/database_exporter.dart';
 import 'package:taxation_card/core/database/database_helper.dart';
 import 'package:taxation_card/core/router/app_router.dart';
 import 'package:taxation_card/features/app/app.dart';
@@ -52,6 +53,7 @@ final class AppRunner {
     final stumpsRepository = StumpsRepository(database: database);
     final soilsRepository = SoilsRepository(database: database);
     final homeCsvExporter = HomeCsvExporter(database: database);
+    final databaseExporter = DatabaseExporter(database: database);
     final taxationCharacteristicBloc = TaxationCharacteristicBloc(
       repository: taxationCharacteristicRepository,
     );
@@ -76,6 +78,7 @@ final class AppRunner {
       undergrowthRepository: undergrowthRepository,
       understoryRepository: understoryRepository,
       homeCsvExporter: homeCsvExporter,
+      databaseExporter: databaseExporter,
     );
 
     runApp(App(routerConfig: AppRouter().config, dependencies: dependencies));

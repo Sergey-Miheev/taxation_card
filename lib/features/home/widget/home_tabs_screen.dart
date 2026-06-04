@@ -136,7 +136,7 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
         return AlertDialog(
           title: const Text('Выгрузить данные в CSV?'),
           content: const Text(
-            'Будут созданы отдельные CSV-файлы по таблицам для текущей пробной площади.',
+            'Будет создан один ZIP-архив с CSV-файлами по таблицам текущей пробной площади.',
           ),
           actions: [
             TextButton(
@@ -173,7 +173,9 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
       }
 
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Выгружено файлов: $exportedFilesCount')),
+        SnackBar(
+          content: Text('CSV-архив создан. Таблиц: $exportedFilesCount'),
+        ),
       );
     } on Object {
       if (!mounted) {

@@ -77,6 +77,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   final List<DiameterPickerSelection> _selectedDiameters = [];
   int? _activeDiameterIndex;
   int? _loadedProbaInfoId;
+  var _isSavePending = false;
 
   @override
   void dispose() {
@@ -98,10 +99,14 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       listener: (context, state) {
         switch (state.status) {
           case PermanentPpStatus.success:
+            if (_isSavePending) {
+              _clearSavedRecordSelection();
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message ?? 'Данные сохранены.')),
             );
           case PermanentPpStatus.failure:
+            _isSavePending = false;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -574,7 +579,20 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       treeHeight: _parseOptionalDouble(_treeHeightController.text),
     );
 
+    FocusManager.instance.primaryFocus?.unfocus();
+    _isSavePending = true;
     context.read<PermanentPpBloc>().add(PermanentPpEvent.sentInfo(record));
+  }
+
+  void _clearSavedRecordSelection() {
+    _isSavePending = false;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _selectedWoodQuality = null;
+      _selectedDynamicElement = null;
+      _selectedDiameters.clear();
+      _activeDiameterIndex = null;
+    });
   }
 
   int? _parseOptionalInt(String value) {

@@ -8,6 +8,7 @@ environment:
   sdk: ^3.10.7
 
 dependencies:
+  archive: ^4.0.9
   bloc: ^9.0.0
   cupertino_icons: ^1.0.8
   file_picker: ^11.0.2

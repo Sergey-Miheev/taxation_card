@@ -1,3 +1,4 @@
+import 'package:taxation_card/core/database/database_exporter.dart';
 import 'package:taxation_card/features/deadwood/bloc/deadwood_bloc.dart';
 import 'package:taxation_card/features/deadwood/domain/deadwood_repository.dart';
 import 'package:taxation_card/features/eyes_taxation/bloc/eyes_taxation_bloc.dart';
@@ -39,6 +40,7 @@ final class Dependencies {
     required this.undergrowthRepository,
     required this.understoryRepository,
     required this.homeCsvExporter,
+    required this.databaseExporter,
   });
 
   final MainTabsBloc mainTabsBloc;
@@ -60,4 +62,5 @@ final class Dependencies {
   final UndergrowthRepository undergrowthRepository;
   final UnderstoryRepository understoryRepository;
   final HomeCsvExporter homeCsvExporter;
+  final DatabaseExporter databaseExporter;
 }
