@@ -13,6 +13,8 @@ final class ProbaInfoRecord {
     required this.understoryPlotCount,
     required this.understoryPlotArea,
     this.id,
+    this.createdAt,
+    this.plantingDate,
     this.region,
     this.district,
     this.forestry,
@@ -36,6 +38,8 @@ final class ProbaInfoRecord {
   });
 
   final int? id;
+  final DateTime? createdAt;
+  final DateTime? plantingDate;
   final String? region;
   final String? district;
   final String? forestry;
@@ -96,7 +100,10 @@ final class ProbaInfoRepository {
   }
 
   Future<int> insert(ProbaInfoRecord record) {
-    return _database.insert('proba_info', _toRow(record));
+    final row = _toRow(record)
+      ..['created_at'] = (record.createdAt ?? DateTime.now()).toIso8601String();
+
+    return _database.insert('proba_info', row);
   }
 
   Future<int> update(ProbaInfoRecord record) {
@@ -200,6 +207,8 @@ final class ProbaInfoRepository {
   ProbaInfoRecord _fromRow(Map<String, Object?> row) {
     return ProbaInfoRecord(
       id: row['id'] as int?,
+      createdAt: _dateTimeFromRow(row['created_at']),
+      plantingDate: _dateTimeFromRow(row['planting_date']),
       region: row['region'] as String?,
       district: row['district'] as String?,
       forestry: row['forestry'] as String?,
@@ -234,7 +243,8 @@ final class ProbaInfoRepository {
   }
 
   Map<String, Object?> _toRow(ProbaInfoRecord record) {
-    return {
+    final row = <String, Object?>{
+      'planting_date': _dateTimeToRow(record.plantingDate),
       'region': record.region,
       'district': record.district,
       'forestry': record.forestry,
@@ -266,5 +276,47 @@ final class ProbaInfoRepository {
       'understory_plot_count': record.understoryPlotCount,
       'understory_plot_area': record.understoryPlotArea,
     };
+
+    if (record.createdAt != null) {
+      row['created_at'] = _dateTimeToRow(record.createdAt);
+    }
+
+    return row;
+  }
+
+  DateTime? _dateTimeFromRow(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    final text = value.toString().trim();
+    if (text.isEmpty) {
+      return null;
+    }
+
+    final parsed =
+        DateTime.tryParse(text) ??
+        DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed != null) {
+      return parsed;
+    }
+
+    final parts = text.split('.');
+    if (parts.length != 3) {
+      return null;
+    }
+
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) {
+      return null;
+    }
+
+    return DateTime(year, month, day);
+  }
+
+  String? _dateTimeToRow(DateTime? value) {
+    return value?.toIso8601String();
   }
 }

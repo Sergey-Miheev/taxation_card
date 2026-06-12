@@ -381,6 +381,7 @@ final class _ProbaInfoTile extends StatelessWidget {
     final theme = Theme.of(context);
     final borderRadius = BorderRadius.circular(14);
     final subForestry = record.subForestry?.trim();
+    final createdAt = _formatCreatedAt(record.createdAt);
 
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -414,6 +415,21 @@ final class _ProbaInfoTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (createdAt != null) ...[
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: Text(
+                    createdAt,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
               IconButton(
                 onPressed: onEditPressed,
                 icon: const Icon(Icons.edit_outlined),
@@ -424,6 +440,19 @@ final class _ProbaInfoTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _formatCreatedAt(DateTime? date) {
+    if (date == null) {
+      return null;
+    }
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$day.$month.${date.year} $hour:$minute';
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:taxation_card/core/database/seed_data.dart';
+import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/proba_info/domain/forestry_repository.dart';
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
@@ -95,10 +96,9 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       TextEditingController();
   final TextEditingController _samplePlotAreaController =
       TextEditingController();
+  final TextEditingController _plantingDateController = TextEditingController();
   final TextEditingController _forestryController = TextEditingController();
   final TextEditingController _subForestryController = TextEditingController();
-  final TextEditingController _dominantSpeciesController =
-      TextEditingController();
   final TextEditingController _soilController = TextEditingController();
   final TextEditingController _livingGroundCoverController =
       TextEditingController();
@@ -115,6 +115,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
   String? _selectedSiteClass;
   String? _selectedForestType;
   String? _selectedTlu;
+  String? _selectedDominantSpecies;
   var _didLoadForestrySuggestions = false;
   var _isSaving = false;
   var _showValidationErrors = false;
@@ -130,6 +131,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       _selectedSiteClass = initialRecord.siteClass;
       _selectedForestType = initialRecord.forestType;
       _selectedTlu = initialRecord.tlu;
+      _selectedDominantSpecies = initialRecord.dominantSpecies;
       _syncControllers(initialRecord);
     }
 
@@ -137,9 +139,9 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     _allotmentController.addListener(_onFormChanged);
     _samplePlotNumberController.addListener(_onFormChanged);
     _samplePlotAreaController.addListener(_onFormChanged);
+    _plantingDateController.addListener(_onFormChanged);
     _forestryController.addListener(_onFormChanged);
     _subForestryController.addListener(_onFormChanged);
-    _dominantSpeciesController.addListener(_onFormChanged);
     _soilController.addListener(_onFormChanged);
     _livingGroundCoverController.addListener(_onFormChanged);
     _undergrowthController.addListener(_onFormChanged);
@@ -171,13 +173,13 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     _samplePlotAreaController
       ..removeListener(_onFormChanged)
       ..dispose();
+    _plantingDateController
+      ..removeListener(_onFormChanged)
+      ..dispose();
     _forestryController
       ..removeListener(_onFormChanged)
       ..dispose();
     _subForestryController
-      ..removeListener(_onFormChanged)
-      ..dispose();
-    _dominantSpeciesController
       ..removeListener(_onFormChanged)
       ..dispose();
     _soilController
@@ -236,7 +238,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Заполните местоположение и параметры пробной площади.',
+                        'Заполните параметры пробной площади.',
                         style: theme.textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 16),
@@ -280,12 +282,12 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       _samplePlotAreaController,
       _formatDouble(record.samplePlotArea),
     );
+    _setControllerText(
+      _plantingDateController,
+      record.plantingDate == null ? '' : _formatDate(record.plantingDate!),
+    );
     _setControllerText(_forestryController, record.forestry ?? '');
     _setControllerText(_subForestryController, record.subForestry ?? '');
-    _setControllerText(
-      _dominantSpeciesController,
-      record.dominantSpecies ?? '',
-    );
     _setControllerText(_soilController, record.soil ?? '');
     _setControllerText(
       _livingGroundCoverController,
@@ -407,6 +409,15 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
           const SizedBox(height: 12),
           _buildResponsiveFields(
             children: [
+              _buildDateField(
+                controller: _plantingDateController,
+                labelText: 'Дата закладки',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildResponsiveFields(
+            children: [
               _buildAutocompleteField(
                 controller: _forestryController,
                 focusNode: _forestryFocusNode,
@@ -461,7 +472,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
               ),
               _buildNumberField(
                 controller: _samplePlotAreaController,
-                labelText: 'Площадь ПП',
+                labelText: 'Площадь ПП, га',
                 allowDecimal: true,
               ),
             ],
@@ -478,9 +489,10 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
         children: [
           _buildResponsiveFields(
             children: [
-              _buildTextField(
-                controller: _dominantSpeciesController,
+              _buildSpeciesField(
+                value: _selectedDominantSpecies,
                 labelText: 'Преобладающая порода',
+                onTap: _showDominantSpeciesDialog,
               ),
               _buildDropdownField(
                 labelText: 'Класс бонитета',
@@ -516,10 +528,15 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
           const SizedBox(height: 12),
           _buildResponsiveFields(
             children: [
-              _buildTextField(controller: _soilController, labelText: 'Почва'),
+              _buildTextField(
+                controller: _soilController,
+                labelText: 'Почва',
+                optional: true,
+              ),
               _buildTextField(
                 controller: _livingGroundCoverController,
                 labelText: 'Живой почвенный покров',
+                optional: true,
               ),
             ],
           ),
@@ -529,10 +546,12 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
               _buildTextField(
                 controller: _undergrowthController,
                 labelText: 'Подрост',
+                optional: true,
               ),
               _buildTextField(
                 controller: _understoryController,
                 labelText: 'Подлесок',
+                optional: true,
               ),
             ],
           ),
@@ -544,12 +563,59 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
   TextFormField _buildTextField({
     required TextEditingController controller,
     required String labelText,
+    bool optional = false,
   }) {
     return TextFormField(
       controller: controller,
       textInputAction: TextInputAction.next,
       decoration: _inputDecoration(labelText: labelText),
+      validator: optional ? null : _validateRequiredText,
+    );
+  }
+
+  Widget _buildSpeciesField({
+    required String? value,
+    required String labelText,
+    required VoidCallback onTap,
+  }) {
+    return FormField<String>(
+      initialValue: value,
+      validator: (_) => _validateRequiredDropdown(_selectedDominantSpecies),
+      builder: (field) {
+        final selectedValue = _selectedDominantSpecies;
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: InputDecorator(
+            decoration: _inputDecoration(labelText: labelText).copyWith(
+              errorText: field.errorText,
+              suffixIcon: const Icon(Icons.search),
+            ),
+            isEmpty: selectedValue == null || selectedValue.isEmpty,
+            child: Text(
+              selectedValue ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  TextFormField _buildDateField({
+    required TextEditingController controller,
+    required String labelText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      decoration: _inputDecoration(
+        labelText: labelText,
+      ).copyWith(suffixIcon: const Icon(Icons.calendar_today_outlined)),
       validator: _validateRequiredText,
+      onTap: () => _selectDate(controller),
     );
   }
 
@@ -725,11 +791,13 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
 
     return ProbaInfoRecord(
       id: id,
+      createdAt: initialRecord?.createdAt,
+      plantingDate: _tryParseDate(_plantingDateController.text),
       region: _emptyToNull(_selectedRegion),
       district: _emptyToNull(_selectedDistrict),
       forestry: _emptyToNull(_forestryController.text),
       subForestry: _emptyToNull(_subForestryController.text),
-      dominantSpecies: _emptyToNull(_dominantSpeciesController.text),
+      dominantSpecies: _emptyToNull(_selectedDominantSpecies),
       siteClass: _emptyToNull(_selectedSiteClass),
       forestType: _emptyToNull(_selectedForestType),
       tlu: _emptyToNull(_selectedTlu),
@@ -762,7 +830,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
         initialRecord.subForestry !=
             _emptyToNull(_subForestryController.text) ||
         initialRecord.dominantSpecies !=
-            _emptyToNull(_dominantSpeciesController.text) ||
+            _emptyToNull(_selectedDominantSpecies) ||
         initialRecord.siteClass != _emptyToNull(_selectedSiteClass) ||
         initialRecord.forestType != _emptyToNull(_selectedForestType) ||
         initialRecord.tlu != _emptyToNull(_selectedTlu) ||
@@ -777,7 +845,26 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
         initialRecord.samplePlotNumber !=
             _tryParseInt(_samplePlotNumberController.text) ||
         initialRecord.samplePlotArea !=
-            _tryParseDouble(_samplePlotAreaController.text);
+            _tryParseDouble(_samplePlotAreaController.text) ||
+        initialRecord.plantingDate !=
+            _tryParseDate(_plantingDateController.text);
+  }
+
+  Future<void> _selectDate(TextEditingController controller) async {
+    final initialDate = _tryParseDate(controller.text) ?? DateTime.now();
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+    );
+
+    if (selectedDate == null) {
+      return;
+    }
+
+    _setControllerText(controller, _formatDate(selectedDate));
+    _onFormChanged();
   }
 
   String? _validatePositiveNumber(String? value) {
@@ -846,6 +933,29 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     return double.tryParse(value.trim().replaceAll(',', '.'));
   }
 
+  DateTime? _tryParseDate(String value) {
+    final parts = value.trim().split('.');
+    if (parts.length != 3) {
+      return null;
+    }
+
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) {
+      return null;
+    }
+
+    return DateTime(year, month, day);
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+
+    return '$day.$month.${date.year}';
+  }
+
   String _formatDouble(double value) {
     if (value == value.truncateToDouble()) {
       return value.toInt().toString();
@@ -901,6 +1011,21 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
               .map((forestry) => forestry.name);
 
     return _filterUniqueOptions(options, value);
+  }
+
+  Future<void> _showDominantSpeciesDialog() async {
+    final result = await showSpeciesPickerDialog(
+      context: context,
+      selectedSpecies: _selectedDominantSpecies,
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() => _selectedDominantSpecies = result);
+    _formKey.currentState?.validate();
+    _onFormChanged();
   }
 
   Iterable<String> _filterUniqueOptions(

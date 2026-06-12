@@ -152,6 +152,8 @@ CREATE TABLE IF NOT EXISTS eyes_taxation (
     await db.execute('''
 CREATE TABLE IF NOT EXISTS proba_info (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  planting_date TEXT,
   region TEXT,
   district TEXT,
   forestry TEXT,

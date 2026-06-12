@@ -70,6 +70,8 @@ final class HomeCsvExporter {
       name: 'proba_info',
       columns: [
         'id',
+        'created_at',
+        'planting_date',
         'region',
         'district',
         'forestry',
@@ -95,6 +97,8 @@ final class HomeCsvExporter {
       ],
       headers: [
         'id',
+        'Дата создания',
+        'Дата закладки',
         'Регион',
         'Район',
         'Лесничество',
