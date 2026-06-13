@@ -49,6 +49,13 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     _loadRowsIfNeeded(selectedProbaInfoId);
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: _buildRowActionButtons(enabled: selectedProbaInfoId != null),
+        ),
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isTablet = constraints.maxWidth >= 720;
@@ -58,7 +65,7 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
               isTablet ? 12 : 16,
               16,
               isTablet ? 12 : 16,
-              16,
+              96,
             ),
             child: Center(
               child: ConstrainedBox(
@@ -234,6 +241,49 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     unawaited(_saveRows());
   }
 
+  Widget _buildRowActionButtons({required bool enabled}) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: enabled ? _addRow : null,
+            icon: const Icon(Icons.add),
+            label: const Text('Добавить'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: enabled && _rows.isNotEmpty ? _removeLastRow : null,
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Удалить'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _addRow() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _rows.add(_TaxationRowData.empty()));
+  }
+
+  void _removeLastRow() {
+    if (_rows.isEmpty) {
+      return;
+    }
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    late final _TaxationRowData removedRow;
+    setState(() => removedRow = _rows.removeLast());
+
+    final shouldSave = !removedRow.isEmpty;
+    removedRow.dispose();
+    if (shouldSave) {
+      unawaited(_saveRows());
+    }
+  }
+
   void _setRows(List<TaxationCharacteristicRecord> records) {
     for (final row in _rows) {
       row.dispose();
@@ -274,6 +324,7 @@ final class _TaxationTable extends StatelessWidget {
     'вегетативное корнеотпрысковое',
     'вегетативное отводковое',
   ];
+  static const _merchantabilityClassOptions = ['1', '2', '3', '4'];
 
   @override
   Widget build(BuildContext context) {
@@ -293,10 +344,10 @@ final class _TaxationTable extends StatelessWidget {
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             columnWidths: const {
               0: FixedColumnWidth(60),
-              1: FixedColumnWidth(120),
+              1: FixedColumnWidth(60),
               2: FixedColumnWidth(150),
-              3: FixedColumnWidth(80),
-              4: FixedColumnWidth(80),
+              3: FixedColumnWidth(70),
+              4: FixedColumnWidth(70),
               5: FixedColumnWidth(80),
               6: FixedColumnWidth(100),
               7: FixedColumnWidth(70),
@@ -319,7 +370,7 @@ final class _TaxationTable extends StatelessWidget {
   TableRow _buildHeaderRow(BuildContext context) {
     final theme = Theme.of(context);
     final headers = [
-      '№ яруса',
+      '№',
       'Состав яруса',
       'Порода',
       'Высота, м',
@@ -334,7 +385,7 @@ final class _TaxationTable extends StatelessWidget {
       children: [
         for (final header in headers)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
             child: Text(
               header,
               style: theme.textTheme.labelLarge?.copyWith(
@@ -394,11 +445,58 @@ final class _TaxationTable extends StatelessWidget {
           options: _originOptions,
           onChanged: onOriginChanged,
         ),
-        _TableTextField(
+        _MerchantabilityClassDropdownCell(
           controller: row.merchantabilityClassController,
-          onFocusLost: onCellFocusLost,
+          options: _merchantabilityClassOptions,
+          onChanged: onOriginChanged,
         ),
       ],
+    );
+  }
+}
+
+final class _MerchantabilityClassDropdownCell extends StatefulWidget {
+  const _MerchantabilityClassDropdownCell({
+    required this.controller,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final List<String> options;
+  final VoidCallback onChanged;
+
+  @override
+  State<_MerchantabilityClassDropdownCell> createState() =>
+      _MerchantabilityClassDropdownCellState();
+}
+
+final class _MerchantabilityClassDropdownCellState
+    extends State<_MerchantabilityClassDropdownCell> {
+  @override
+  Widget build(BuildContext context) {
+    final currentValue = widget.controller.text.trim();
+    final value = widget.options.contains(currentValue) ? currentValue : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        items: [
+          for (final option in widget.options)
+            DropdownMenuItem<String>(value: option, child: Text(option)),
+        ],
+        onChanged: (value) {
+          setState(() => widget.controller.text = value ?? '');
+          widget.onChanged();
+        },
+        decoration: const InputDecoration(
+          isDense: true,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        ),
+      ),
     );
   }
 }
@@ -425,17 +523,31 @@ final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
     final value = widget.options.contains(currentValue) ? currentValue : null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
+        itemHeight: 64,
         items: [
           for (final option in widget.options)
             DropdownMenuItem<String>(
               value: option,
-              child: Text(option, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(option, maxLines: 2, overflow: TextOverflow.ellipsis),
             ),
         ],
+        selectedItemBuilder: (context) {
+          return [
+            for (final option in widget.options)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  option,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ];
+        },
         onChanged: (value) {
           setState(() => widget.controller.text = value ?? '');
           widget.onChanged();
@@ -443,7 +555,7 @@ final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
         decoration: const InputDecoration(
           isDense: true,
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         ),
       ),
     );

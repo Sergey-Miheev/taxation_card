@@ -65,7 +65,15 @@ final class _HighlightedRecordRow extends StatelessWidget {
 
 final class _PermanentPpScreenState extends State<PermanentPpScreen>
     with AutomaticKeepAliveClientMixin {
-  static const _woodQualityOptions = ['Деловая', 'Полуделовая', 'Дровянная'];
+  static const _woodQualityOptions = [
+    'Деловая',
+    'Полуделовая',
+    'Дровянная',
+    'Сухостой 1',
+    'Сухостой 2',
+    'Сухостой 3',
+    'Сухостой 4',
+  ];
 
   final _formKey = GlobalKey<FormState>();
   final _treeAgeController = TextEditingController();
@@ -102,17 +110,16 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
             if (_isSavePending) {
               _clearSavedRecordSelection();
             }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message ?? 'Данные сохранены.')),
+            _showTopSnackBar(
+              context,
+              state.message ?? 'Данные сохранены.',
+              duration: const Duration(milliseconds: 700),
             );
           case PermanentPpStatus.failure:
             _isSavePending = false;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  state.message ?? 'Не удалось выполнить действие.',
-                ),
-              ),
+            _showTopSnackBar(
+              context,
+              state.message ?? 'Не удалось выполнить действие.',
             );
           case PermanentPpStatus.idle:
           case PermanentPpStatus.loading:
@@ -296,7 +303,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                 const SizedBox(height: 24),
                 BlocBuilder<PermanentPpBloc, PermanentPpState>(
                   builder: (context, state) {
-                    return _buildRecentRecords(
+                    return _buildRecords(
                       context: context,
                       records: state.records,
                       selectedProbaInfoId: selectedProbaInfoId,
@@ -315,7 +322,27 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   @override
   bool get wantKeepAlive => true;
 
-  Widget _buildRecentRecords({
+  void _showTopSnackBar(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          left: 16,
+          top: MediaQuery.paddingOf(context).top + 16,
+          right: 16,
+          bottom: MediaQuery.sizeOf(context).height - 148,
+        ),
+        duration: duration,
+      ),
+    );
+  }
+
+  Widget _buildRecords({
     required BuildContext context,
     required List<TreeInformationRecord> records,
     required int? selectedProbaInfoId,
@@ -325,7 +352,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Последние записи', style: theme.textTheme.titleMedium),
+        Text('Все записи', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         if (selectedProbaInfoId == null)
           Text(
@@ -342,21 +369,59 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
             ),
           )
         else
-          ...records
-              .take(4)
-              .map(
-                (record) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _HighlightedRecordRow(
-                    text:
-                        '${_formatRecordTitle(record)} • ${_formatRecordSubtitle(record)}',
-                    onDeletePressed: record.id == null
-                        ? null
-                        : () => _onDeleteRecord(record, selectedProbaInfoId),
-                  ),
-                ),
+          ...records.map(
+            (record) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _HighlightedRecordRow(
+                text:
+                    '${_formatRecordTitle(record)} • ${_formatRecordSubtitle(record)}',
+                onDeletePressed: record.id == null
+                    ? null
+                    : () => _onDeleteRecord(record, selectedProbaInfoId),
               ),
+            ),
+          ),
       ],
+    );
+  }
+
+  Future<void> _onDeleteRecord(
+    TreeInformationRecord record,
+    int selectedProbaInfoId,
+  ) async {
+    final id = record.id;
+    if (id == null) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удалить запись?'),
+          content: Text(
+            '${_formatRecordTitle(record)}\n${_formatRecordSubtitle(record)}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    context.read<PermanentPpBloc>().add(
+      PermanentPpEvent.deleted(id: id, probaInfoId: selectedProbaInfoId),
     );
   }
 
@@ -379,17 +444,6 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
         PermanentPpEvent.loaded(selectedProbaInfoId),
       );
     });
-  }
-
-  void _onDeleteRecord(TreeInformationRecord record, int selectedProbaInfoId) {
-    final id = record.id;
-    if (id == null) {
-      return;
-    }
-
-    context.read<PermanentPpBloc>().add(
-      PermanentPpEvent.deleted(id: id, probaInfoId: selectedProbaInfoId),
-    );
   }
 
   String _formatRecordTitle(TreeInformationRecord record) {
@@ -545,7 +599,14 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     });
   }
 
-  void _onSavePressed() {
+  Future<void> _onSavePressed() async {
+    if (_selectedDynamicElement?.trim().isEmpty ?? true) {
+      await _showSpeciesDialog();
+      if (!mounted) {
+        return;
+      }
+    }
+
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) {
       return;
@@ -588,10 +649,12 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     _isSavePending = false;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
-      _selectedWoodQuality = null;
+      _selectedWoodQuality = 'Деловая';
       _selectedDynamicElement = null;
       _selectedDiameters.clear();
       _activeDiameterIndex = null;
+      _treeAgeController.clear();
+      _treeHeightController.clear();
     });
   }
 

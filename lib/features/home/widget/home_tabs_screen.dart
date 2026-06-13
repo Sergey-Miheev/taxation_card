@@ -22,6 +22,8 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   bool _isExporting = false;
+  bool _isExitConfirmed = false;
+  DateTime? _lastSwipeBackAttemptAt;
 
   @override
   void initState() {
@@ -49,59 +51,64 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
       (bloc) => bloc.state.selectedProbaInfoId,
     );
 
-    return BlocListener<MainTabsBloc, MainTabsState>(
-      listenWhen: (previous, current) =>
-          previous.selectedTab != current.selectedTab,
-      listener: (context, state) {
-        if (_tabController.index != state.selectedTab.index) {
-          _tabController.animateTo(state.selectedTab.index);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Таксационная карточка'),
-          actions: [
-            IconButton(
-              onPressed: selectedProbaInfoId == null
-                  ? null
-                  : () => _openCoordinatesScreen(selectedProbaInfoId),
-              icon: const Icon(Icons.pin_drop_outlined),
-              tooltip: 'Координаты',
+    return PopScope(
+      canPop: _isExitConfirmed,
+      onPopInvokedWithResult: (didPop, result) =>
+          _onPopInvoked<Object?>(didPop, result),
+      child: BlocListener<MainTabsBloc, MainTabsState>(
+        listenWhen: (previous, current) =>
+            previous.selectedTab != current.selectedTab,
+        listener: (context, state) {
+          if (_tabController.index != state.selectedTab.index) {
+            _tabController.animateTo(state.selectedTab.index);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Таксационная карточка'),
+            actions: [
+              IconButton(
+                onPressed: selectedProbaInfoId == null
+                    ? null
+                    : () => _openCoordinatesScreen(selectedProbaInfoId),
+                icon: const Icon(Icons.pin_drop_outlined),
+                tooltip: 'Координаты',
+              ),
+              IconButton(
+                onPressed: _isExporting || selectedProbaInfoId == null
+                    ? null
+                    : () => _showExportDialog(selectedProbaInfoId),
+                icon: _isExporting
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      )
+                    : const Icon(Icons.ios_share),
+                tooltip: 'Выгрузить CSV',
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white,
+              onTap: _selectTab,
+              tabs: [for (final tab in MainTab.values) Tab(text: tab.title)],
             ),
-            IconButton(
-              onPressed: _isExporting || selectedProbaInfoId == null
-                  ? null
-                  : () => _showExportDialog(selectedProbaInfoId),
-              icon: _isExporting
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    )
-                  : const Icon(Icons.ios_share),
-              tooltip: 'Выгрузить CSV',
-            ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white,
-            onTap: _selectTab,
-            tabs: [for (final tab in MainTab.values) Tab(text: tab.title)],
           ),
-        ),
-        body: TabBarView(
-          controller: _tabController,
-          children: const [
-            EyesTaxationScreen(),
-            PermanentPpScreen(),
-            UndergrowthScreen(),
-            UnderstoryScreen(),
-            DeadwoodScreen(),
-            StumpsScreen(),
-            SoilsScreen(),
-          ],
+          body: TabBarView(
+            controller: _tabController,
+            children: const [
+              EyesTaxationScreen(),
+              PermanentPpScreen(),
+              UndergrowthScreen(),
+              UnderstoryScreen(),
+              DeadwoodScreen(),
+              StumpsScreen(),
+              SoilsScreen(),
+            ],
+          ),
         ),
       ),
     );
@@ -126,6 +133,58 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
   void _selectTab(int index) {
     context.read<MainTabsBloc>().add(
       MainTabsEvent.tabSelected(MainTab.values[index]),
+    );
+  }
+
+  Future<void> _onPopInvoked<T>(bool didPop, T? result) async {
+    if (didPop || _isExitConfirmed) {
+      return;
+    }
+
+    final isSwipeBack = ModalRoute.of(context)?.popGestureInProgress ?? false;
+    if (isSwipeBack && !_isSecondSwipeBackAttempt()) {
+      return;
+    }
+
+    final confirmed = await _showExitConfirmationDialog();
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _isExitConfirmed = true);
+    Navigator.of(context).pop(result);
+  }
+
+  bool _isSecondSwipeBackAttempt() {
+    final now = DateTime.now();
+    final lastAttemptAt = _lastSwipeBackAttemptAt;
+    _lastSwipeBackAttemptAt = now;
+
+    if (lastAttemptAt == null) {
+      return false;
+    }
+
+    return now.difference(lastAttemptAt) <= const Duration(seconds: 4);
+  }
+
+  Future<bool?> _showExitConfirmationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Вы уверены, что хотите выйти?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Нет'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Да'),
+            ),
+          ],
+        );
+      },
     );
   }
 

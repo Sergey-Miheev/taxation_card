@@ -186,6 +186,7 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
                     record: records[index],
                     onTap: () => _openEyesTaxation(records[index]),
                     onEditPressed: () => _openProbaInfoForm(records[index]),
+                    onDeletePressed: () => _confirmAndDelete(records[index]),
                   ),
                   if (index != records.length - 1) const SizedBox(height: 8),
                 ],
@@ -240,6 +241,61 @@ final class _ProbaInfoListScreenState extends State<ProbaInfoListScreen> {
       ..add(MainTabsEvent.probaInfoSelected(id))
       ..add(const MainTabsEvent.tabSelected(MainTab.eyesTaxation));
     await context.pushNamed(AppRoutes.home.name);
+  }
+
+  Future<void> _confirmAndDelete(ProbaInfoRecord record) async {
+    final id = record.id;
+    if (id == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удалить запись?'),
+          content: Text(
+            'Пробная площадь №${record.samplePlotNumber} будет удалена вместе со связанными данными.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await DependenciesScope.of(context).probaInfoRepository.delete(id);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordsFuture = _loadRecords();
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Запись удалена')));
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось удалить запись')),
+      );
+    }
   }
 
   Future<void> _exportDatabase() async {
@@ -370,11 +426,13 @@ final class _ProbaInfoTile extends StatelessWidget {
     required this.record,
     required this.onTap,
     required this.onEditPressed,
+    required this.onDeletePressed,
   });
 
   final ProbaInfoRecord record;
   final VoidCallback onTap;
   final VoidCallback onEditPressed;
+  final VoidCallback onDeletePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -430,10 +488,22 @@ final class _ProbaInfoTile extends StatelessWidget {
                   ),
                 ),
               ],
-              IconButton(
-                onPressed: onEditPressed,
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Редактировать',
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton.icon(
+                    onPressed: onEditPressed,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Редактировать'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onDeletePressed,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Удалить'),
+                  ),
+                ],
               ),
             ],
           ),

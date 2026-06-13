@@ -40,6 +40,7 @@ class DatabaseHelper {
     await db.execute('''
 CREATE TABLE federation_subjects (
   id $idType,
+  code INTEGER NOT NULL UNIQUE,
   name $textType
 )
 ''');
@@ -58,6 +59,7 @@ CREATE TABLE subject_districts (
     await _seedFederationData(db);
     await _seedForestryData(db);
     await _createProbaInfoTable(db);
+    await _seedTestProbaInfo(db);
     await _createEyesTaxationTable(db);
     await _createTreeInformationTable(db);
     await _createUndergrowthTable(db);
@@ -67,18 +69,19 @@ CREATE TABLE subject_districts (
     await _createSoilsTable(db);
   }
 
-  Future<void> _createDistrictForestriesTable(Database db) async {
+  Future<void> _createDistrictForestriesTable(DatabaseExecutor db) async {
     await db.execute('''
 CREATE TABLE district_forestries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   fgis_code TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  region_code INTEGER NOT NULL
+  region_code INTEGER NOT NULL,
+  FOREIGN KEY (region_code) REFERENCES federation_subjects (code) ON DELETE CASCADE
 )
 ''');
   }
 
-  Future<void> _createSubForestriesTable(Database db) async {
+  Future<void> _createSubForestriesTable(DatabaseExecutor db) async {
     await db.execute('''
 CREATE TABLE sub_forestries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,16 +89,21 @@ CREATE TABLE sub_forestries (
   name TEXT NOT NULL,
   region_code INTEGER NOT NULL,
   district_forestry_code TEXT NOT NULL,
+  FOREIGN KEY (region_code) REFERENCES federation_subjects (code) ON DELETE CASCADE,
   FOREIGN KEY (district_forestry_code) REFERENCES district_forestries (fgis_code) ON DELETE CASCADE
 )
 ''');
   }
 
   Future<void> _seedFederationData(Database db) async {
+    var subjectCode = 1;
     for (final entry in russianFederationData.entries) {
       final subjectId = await db.insert('federation_subjects', {
+        'code': subjectCode,
         'name': entry.key,
       });
+      subjectCode++;
+
       final batch = db.batch();
       for (final district in entry.value) {
         batch.insert('subject_districts', {
@@ -108,8 +116,20 @@ CREATE TABLE sub_forestries (
   }
 
   Future<void> _seedForestryData(Database db) async {
+    final subjectRows = await db.query(
+      'federation_subjects',
+      columns: ['code'],
+    );
+    final subjectCodes = subjectRows.map((row) => row['code']! as int).toSet();
+    final districtForestryCodes = <String>{};
+
     final districtBatch = db.batch();
     for (final forestry in districtForestrySeedData) {
+      if (!subjectCodes.contains(forestry.regionCode)) {
+        continue;
+      }
+
+      districtForestryCodes.add(forestry.fgisCode);
       districtBatch.insert('district_forestries', {
         'fgis_code': forestry.fgisCode,
         'name': forestry.name,
@@ -120,6 +140,11 @@ CREATE TABLE sub_forestries (
 
     final subForestryBatch = db.batch();
     for (final forestry in subForestrySeedData) {
+      if (!subjectCodes.contains(forestry.regionCode) ||
+          !districtForestryCodes.contains(forestry.districtForestryCode)) {
+        continue;
+      }
+
       subForestryBatch.insert('sub_forestries', {
         'fgis_code': forestry.fgisCode,
         'name': forestry.name,
@@ -186,6 +211,34 @@ CREATE TABLE IF NOT EXISTS proba_info (
   y4 TEXT
 )
 ''');
+  }
+
+  Future<void> _seedTestProbaInfo(Database db) async {
+    await db.insert('proba_info', {
+      'planting_date': DateTime.now().toIso8601String(),
+      'region': 'Республика Адыгея (Адыгея)',
+      'district': 'Майкопский муниципальный район',
+      'forestry': 'Майкопское',
+      'sub_forestry': 'Абадзехское',
+      'dominant_species': 'Сосна',
+      'site_class': '1',
+      'forest_type': 'СБР',
+      'tlu': 'B2',
+      'soil': 'Дерново-подзолистая',
+      'living_ground_cover': 'Травяной',
+      'undergrowth': 'Сосна',
+      'understory': 'Лещина',
+      'undergrowth_plot_count': 0,
+      'undergrowth_plot_area': 0,
+      'understory_plot_count': 0,
+      'understory_plot_area': 0,
+      'quarter': 1,
+      'allotment': 1,
+      'sample_plot_number': 1,
+      'sample_plot_area': 0.25,
+      'deadwood_area': 0,
+      'stumps_accounting_area': 0,
+    });
   }
 
   Future<void> _createTreeInformationTable(Database db) async {

@@ -243,12 +243,10 @@ final class _ManualDiameterDialog extends StatefulWidget {
 final class _ManualDiameterDialogState extends State<_ManualDiameterDialog> {
   final _formKey = GlobalKey<FormState>();
   final _diameterController = TextEditingController();
-  final _millimeterController = TextEditingController(text: '0');
 
   @override
   void dispose() {
     _diameterController.dispose();
-    _millimeterController.dispose();
     super.dispose();
   }
 
@@ -258,41 +256,23 @@ final class _ManualDiameterDialogState extends State<_ManualDiameterDialog> {
       title: const Text('Введите диаметр'),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _diameterController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Диаметр',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final diameter = int.tryParse(value?.trim() ?? '');
-                if (diameter == null || diameter <= 0) {
-                  return 'Введите диаметр';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _millimeterController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Миллиметры',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final millimeter = int.tryParse(value?.trim() ?? '');
-                if (millimeter == null || millimeter < 0 || millimeter > 9) {
-                  return 'Введите значение от 0 до 9';
-                }
-                return null;
-              },
-            ),
-          ],
+        child: TextFormField(
+          controller: _diameterController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Диаметр',
+            hintText: 'Например: 12,5',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            final text = value?.trim() ?? '';
+            final isValidFormat = RegExp(r'^\d+([,.]\d)?$').hasMatch(text);
+            final diameter = double.tryParse(text.replaceAll(',', '.'));
+            if (!isValidFormat || diameter == null || diameter <= 0) {
+              return 'Введите диаметр с точностью до 0,1';
+            }
+            return null;
+          },
         ),
       ),
       actions: [
@@ -311,13 +291,18 @@ final class _ManualDiameterDialogState extends State<_ManualDiameterDialog> {
       return;
     }
 
-    Navigator.pop(
-      context,
-      DiameterPickerSelection(
-        diameter: int.parse(_diameterController.text.trim()),
-        millimeter: int.parse(_millimeterController.text.trim()),
-        isManual: true,
-      ),
+    Navigator.pop(context, _parseSelection(_diameterController.text));
+  }
+
+  DiameterPickerSelection _parseSelection(String value) {
+    final parsed = double.parse(value.trim().replaceAll(',', '.'));
+    final diameter = parsed.truncate();
+    final millimeter = ((parsed - diameter) * 10).round();
+
+    return DiameterPickerSelection(
+      diameter: diameter,
+      millimeter: millimeter,
+      isManual: true,
     );
   }
 }

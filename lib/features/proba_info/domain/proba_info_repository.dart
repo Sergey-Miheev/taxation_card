@@ -115,6 +115,10 @@ final class ProbaInfoRepository {
     );
   }
 
+  Future<int> delete(int id) {
+    return _database.delete('proba_info', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<int> updateCoordinates({
     required int id,
     required String x1,

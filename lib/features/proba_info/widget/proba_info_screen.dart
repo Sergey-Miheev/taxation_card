@@ -212,60 +212,77 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
               : 'Информация о пробной площади',
         ),
       ),
-      body: Form(
-        key: _formKey,
-        autovalidateMode: _showValidationErrors
-            ? AutovalidateMode.always
-            : AutovalidateMode.onUserInteraction,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 720;
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _unfocusCurrentField,
+        child: Form(
+          key: _formKey,
+          autovalidateMode: _showValidationErrors
+              ? AutovalidateMode.always
+              : AutovalidateMode.disabled,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isTablet = constraints.maxWidth >= 720;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? 24 : 16,
-                vertical: 16,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1180),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Общая информация',
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Заполните параметры пробной площади.',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      if (isTablet)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildLocationCard()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildSamplePlotCard()),
-                          ],
-                        )
-                      else ...[
-                        _buildLocationCard(),
-                        const SizedBox(height: 12),
-                        _buildSamplePlotCard(),
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 24 : 16,
+                  vertical: 16,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Общая информация',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Заполните параметры пробной площади.',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 16),
+                        if (isTablet)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildLocationCard()),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildSamplePlotCard()),
+                            ],
+                          )
+                        else ...[
+                          _buildLocationCard(),
+                          const SizedBox(height: 12),
+                          _buildSamplePlotCard(),
+                        ],
+                        const SizedBox(height: 16),
+                        _buildForestDescriptionCard(),
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildResponsiveFields(
+                            children: [
+                              _buildDateField(
+                                controller: _plantingDateController,
+                                labelText: 'Дата закладки',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        _buildSaveButton(),
                       ],
-                      const SizedBox(height: 16),
-                      _buildForestDescriptionCard(),
-                      const SizedBox(height: 16),
-                      _buildSaveButton(),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -307,6 +324,33 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       selection: TextSelection.collapsed(offset: text.length),
       composing: TextRange.empty,
     );
+  }
+
+  void _refreshEmptyAutocompleteController(TextEditingController controller) {
+    if (controller.text.isNotEmpty) {
+      return;
+    }
+
+    controller
+      ..value = controller.value.copyWith(
+        text: ' ',
+        selection: const TextSelection.collapsed(offset: 1),
+        composing: TextRange.empty,
+      )
+      ..value = controller.value.copyWith(
+        text: '',
+        selection: const TextSelection.collapsed(offset: 0),
+        composing: TextRange.empty,
+      );
+  }
+
+  void _closeForestrySuggestionOverlays() {
+    _forestryFocusNode.unfocus();
+    _subForestryFocusNode.unfocus();
+  }
+
+  void _unfocusCurrentField() {
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   void _onFormChanged() {
@@ -352,6 +396,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                 isExpanded: true,
                 initialValue: _selectedRegion,
                 decoration: _inputDecoration(labelText: 'Субъект РФ'),
+                onTap: _closeForestrySuggestionOverlays,
                 items:
                     _dropdownItemsWithCurrent(
                           russianFederationData.keys,
@@ -368,9 +413,14 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                         )
                         .toList(),
                 onChanged: (regionValue) {
+                  _closeForestrySuggestionOverlays();
                   setState(() {
                     _selectedRegion = regionValue;
                     _selectedDistrict = null;
+                    _forestryController.clear();
+                    _subForestryController.clear();
+                    _refreshEmptyAutocompleteController(_forestryController);
+                    _refreshEmptyAutocompleteController(_subForestryController);
                   });
                 },
                 validator: _validateRequiredDropdown,
@@ -409,15 +459,6 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
           const SizedBox(height: 12),
           _buildResponsiveFields(
             children: [
-              _buildDateField(
-                controller: _plantingDateController,
-                labelText: 'Дата закладки',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildResponsiveFields(
-            children: [
               _buildAutocompleteField(
                 controller: _forestryController,
                 focusNode: _forestryFocusNode,
@@ -426,6 +467,7 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
                 onSelected: (value) {
                   _forestryController.text = value;
                   _subForestryController.clear();
+                  _refreshEmptyAutocompleteController(_subForestryController);
                   _onFormChanged();
                 },
               ),
@@ -635,12 +677,19 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
       onSelected: onSelected,
       fieldViewBuilder:
           (context, textEditingController, focusNode, onFieldSubmitted) {
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              textInputAction: TextInputAction.next,
-              decoration: _inputDecoration(labelText: labelText),
-              validator: _validateRequiredText,
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTapDown: (_) =>
+                  _refreshEmptyAutocompleteController(textEditingController),
+              child: TextFormField(
+                controller: textEditingController,
+                focusNode: focusNode,
+                textInputAction: TextInputAction.next,
+                decoration: _inputDecoration(labelText: labelText),
+                onTap: () =>
+                    _refreshEmptyAutocompleteController(textEditingController),
+                validator: _validateRequiredText,
+              ),
             );
           },
       optionsViewBuilder: (context, onSelected, options) {
@@ -988,21 +1037,22 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
 
   Iterable<String> _districtForestryOptions(String value) {
     return _filterUniqueOptions(
-      _districtForestries.map((forestry) => forestry.name),
+      _districtForestriesForSelectedRegion.map((forestry) => forestry.name),
       value,
     );
   }
 
   Iterable<String> _subForestryOptions(String value) {
     final districtForestryName = _forestryController.text.trim();
-    final districtForestryCodes = _districtForestries
+    final districtForestryCodes = _districtForestriesForSelectedRegion
         .where((forestry) => forestry.name == districtForestryName)
         .map((forestry) => forestry.fgisCode)
         .toSet();
 
+    final subForestries = _subForestriesForSelectedRegion;
     final options = districtForestryCodes.isEmpty
-        ? _subForestries.map((forestry) => forestry.name)
-        : _subForestries
+        ? subForestries.map((forestry) => forestry.name)
+        : subForestries
               .where(
                 (forestry) => districtForestryCodes.contains(
                   forestry.districtForestryCode,
@@ -1011,6 +1061,42 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
               .map((forestry) => forestry.name);
 
     return _filterUniqueOptions(options, value);
+  }
+
+  int? get _selectedRegionCode {
+    final region = _selectedRegion;
+    if (region == null) {
+      return null;
+    }
+
+    final index = russianFederationData.keys.toList().indexOf(region);
+    if (index == -1) {
+      return null;
+    }
+
+    return index + 1;
+  }
+
+  Iterable<DistrictForestryRecord> get _districtForestriesForSelectedRegion {
+    final regionCode = _selectedRegionCode;
+    if (regionCode == null) {
+      return _districtForestries;
+    }
+
+    return _districtForestries.where(
+      (forestry) => forestry.regionCode == regionCode,
+    );
+  }
+
+  Iterable<SubForestryRecord> get _subForestriesForSelectedRegion {
+    final regionCode = _selectedRegionCode;
+    if (regionCode == null) {
+      return _subForestries;
+    }
+
+    return _subForestries.where(
+      (forestry) => forestry.regionCode == regionCode,
+    );
   }
 
   Future<void> _showDominantSpeciesDialog() async {
@@ -1024,7 +1110,6 @@ final class _ProbaInfoScreenState extends State<ProbaInfoScreen> {
     }
 
     setState(() => _selectedDominantSpecies = result);
-    _formKey.currentState?.validate();
     _onFormChanged();
   }
 
