@@ -30,10 +30,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
   final _lengthController = TextEditingController();
   final _rotSizeController = TextEditingController();
   final _rotLengthController = TextEditingController();
-  final List<String> _dynamicElements = [];
 
   String? _selectedSpecies;
-  String? _selectedDecayStage;
+  String? _selectedDecayStage = _decayStageOptions.first;
   int? _selectedDiameterNumber;
   int? _selectedMillimeterNumber;
   bool _isSelectedDiameterManual = false;
@@ -47,6 +46,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     _lengthController.addListener(_onLengthChanged);
     _rotSizeController.addListener(_onRotSizeChanged);
     _rotLengthController.addListener(_onRotLengthChanged);
+    context.read<DeadwoodBloc>().add(
+      DeadwoodEvent.decayClassChanged(_selectedDecayStage!),
+    );
   }
 
   @override
@@ -70,6 +72,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
       (bloc) => bloc.state.selectedProbaInfoId,
     );
+    final speciesOptionsController = DependenciesScope.of(
+      context,
+    ).speciesOptionsController;
     final needsDeadwoodArea =
         selectedProbaInfoId != null && ((_deadwoodArea ?? 0) <= 0);
     _loadRecordsIfNeeded(selectedProbaInfoId);
@@ -78,6 +83,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
       listenWhen: (previous, current) => previous.status != current.status,
       listener: (context, state) {
         if (state.status == DeadwoodStatus.success) {
+          if (state.message == 'Данные по валёжнику сохранены.') {
+            _clearInputFields();
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message ?? 'Данные по валёжнику сохранены.'),
@@ -135,14 +143,21 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
               children: [
                 _buildAreaInfo(
                   context: context,
-                  label: 'Площадь учёта валёжника',
+                  label: 'Площадь учёта валёжника, га',
                   value: _deadwoodArea,
+                  onEditPressed:
+                      _deadwoodArea == null ||
+                          _deadwoodArea! <= 0 ||
+                          _isSavingDeadwoodArea
+                      ? null
+                      : () => _showDeadwoodAreaDialog(selectedProbaInfoId),
                 ),
-                if ((_deadwoodArea ?? 0) <= 0) ...[
+                if (needsDeadwoodArea) ...[
                   const SizedBox(height: 12),
                   _AreaSetupForm(
-                    title: 'Площадь учёта валёжника',
-                    labelText: 'Площадь учёта валёжника',
+                    title: 'Площадь учёта валёжника, га',
+                    labelText: 'Площадь учёта валёжника, га',
+                    initialValue: _deadwoodArea,
                     isSaving: _isSavingDeadwoodArea,
                     onSave: (area) =>
                         _saveDeadwoodArea(selectedProbaInfoId, area),
@@ -154,58 +169,65 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                   const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        ..._dynamicElements.map((element) {
-                          final isSelected = _selectedSpecies == element;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: InputChip(
-                              label: Text(element),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedSpecies = selected ? element : null;
-                                });
-                                context.read<DeadwoodBloc>().add(
-                                  DeadwoodEvent.speciesChanged(
-                                    _selectedSpecies,
+                    child: ValueListenableBuilder<List<String>>(
+                      valueListenable: speciesOptionsController,
+                      builder: (context, speciesOptions, _) {
+                        return Row(
+                          children: [
+                            ...speciesOptions.map((element) {
+                              final isSelected = _selectedSpecies == element;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: InputChip(
+                                  label: Text(element),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedSpecies = selected
+                                          ? element
+                                          : null;
+                                    });
+                                    context.read<DeadwoodBloc>().add(
+                                      DeadwoodEvent.speciesChanged(
+                                        _selectedSpecies,
+                                      ),
+                                    );
+                                  },
+                                  onDeleted: () {
+                                    speciesOptionsController.remove(element);
+                                    setState(() {
+                                      if (_selectedSpecies == element) {
+                                        _selectedSpecies = null;
+                                      }
+                                    });
+                                    context.read<DeadwoodBloc>().add(
+                                      DeadwoodEvent.speciesChanged(
+                                        _selectedSpecies,
+                                      ),
+                                    );
+                                  },
+                                  showCheckmark: false,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                );
-                              },
-                              onDeleted: () {
-                                setState(() {
-                                  _dynamicElements.remove(element);
-                                  if (_selectedSpecies == element) {
-                                    _selectedSpecies = null;
-                                  }
-                                });
-                                context.read<DeadwoodBloc>().add(
-                                  DeadwoodEvent.speciesChanged(
-                                    _selectedSpecies,
-                                  ),
-                                );
-                              },
-                              showCheckmark: false,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                  backgroundColor: theme
+                                      .colorScheme
+                                      .secondaryContainer
+                                      .withValues(alpha: 0.5),
+                                ),
+                              );
+                            }),
+                            IconButton.filledTonal(
+                              onPressed: _showSpeciesDialog,
+                              icon: const Icon(Icons.add, size: 20),
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
                               ),
-                              backgroundColor: theme
-                                  .colorScheme
-                                  .secondaryContainer
-                                  .withValues(alpha: 0.5),
                             ),
-                          );
-                        }),
-                        IconButton.filledTonal(
-                          onPressed: _showSpeciesDialog,
-                          icon: const Icon(Icons.add, size: 20),
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -276,6 +298,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
+                    key: ValueKey(_selectedDecayStage),
                     initialValue: _selectedDecayStage,
                     decoration: _inputDecoration(
                       labelText: 'Стадия разложения КДО',
@@ -324,6 +347,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     required BuildContext context,
     required String label,
     required double? value,
+    required VoidCallback? onEditPressed,
   }) {
     final theme = Theme.of(context);
     final valueText = value == null || value <= 0
@@ -336,17 +360,26 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Expanded(child: Text(label, style: theme.textTheme.titleSmall)),
+            Expanded(child: Text(label, style: theme.textTheme.titleMedium)),
+            const SizedBox(width: 12),
             Text(
               valueText,
-              style: theme.textTheme.titleSmall?.copyWith(
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (onEditPressed != null) ...[
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: onEditPressed,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Редактировать'),
+              ),
+            ],
           ],
         ),
       ),
@@ -363,7 +396,10 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Последние записи', style: theme.textTheme.titleMedium),
+        Text(
+          'Список валежа',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         if (selectedProbaInfoId == null)
           Text(
@@ -460,6 +496,13 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     }
 
     _loadedProbaInfoId = selectedProbaInfoId;
+    _selectedSpecies = null;
+    context.read<DeadwoodBloc>().add(const DeadwoodEvent.speciesChanged(null));
+    unawaited(
+      DependenciesScope.of(
+        context,
+      ).speciesOptionsController.loadForProbaInfo(selectedProbaInfoId),
+    );
     if (selectedProbaInfoId == null) {
       _deadwoodArea = null;
       return;
@@ -502,7 +545,9 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
         return;
       }
 
-      setState(() => _deadwoodArea = area);
+      setState(() {
+        _deadwoodArea = area;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Площадь учёта валёжника сохранена.')),
       );
@@ -541,6 +586,26 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
             ? null
             : _selectedMillimeterNumber ?? 0,
       ),
+    );
+  }
+
+  void _clearInputFields() {
+    setState(() {
+      _selectedSpecies = null;
+      _selectedDiameterNumber = null;
+      _selectedMillimeterNumber = null;
+      _isSelectedDiameterManual = false;
+      _selectedDecayStage = _decayStageOptions.first;
+    });
+    _lengthController.clear();
+    _rotSizeController.clear();
+    _rotLengthController.clear();
+    context.read<DeadwoodBloc>().add(const DeadwoodEvent.speciesChanged(null));
+    context.read<DeadwoodBloc>().add(
+      const DeadwoodEvent.diameterChanged(diameter: null, millimeter: null),
+    );
+    context.read<DeadwoodBloc>().add(
+      DeadwoodEvent.decayClassChanged(_decayStageOptions.first),
     );
   }
 
@@ -667,6 +732,21 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     return double.parse(trimmed.replaceAll(',', '.'));
   }
 
+  Future<void> _showDeadwoodAreaDialog(int? selectedProbaInfoId) async {
+    final area = await showDialog<double>(
+      context: context,
+      builder: (context) => _AreaEditDialog(
+        title: 'Площадь учёта валёжника, га',
+        labelText: 'Площадь учёта валёжника, га',
+        initialValue: _deadwoodArea,
+      ),
+    );
+
+    if (area != null && mounted) {
+      await _saveDeadwoodArea(selectedProbaInfoId, area);
+    }
+  }
+
   Future<void> _showSpeciesDialog() async {
     final result = await showSpeciesPickerDialog(
       context: context,
@@ -674,14 +754,111 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     );
 
     if (result != null && mounted) {
+      DependenciesScope.of(context).speciesOptionsController.add(result);
       setState(() {
-        if (!_dynamicElements.contains(result)) {
-          _dynamicElements.add(result);
-        }
         _selectedSpecies = result;
       });
       context.read<DeadwoodBloc>().add(DeadwoodEvent.speciesChanged(result));
     }
+  }
+}
+
+final class _AreaEditDialog extends StatefulWidget {
+  const _AreaEditDialog({
+    required this.title,
+    required this.labelText,
+    required this.initialValue,
+  });
+
+  final String title;
+  final String labelText;
+  final double? initialValue;
+
+  @override
+  State<_AreaEditDialog> createState() => _AreaEditDialogState();
+}
+
+final class _AreaEditDialogState extends State<_AreaEditDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _areaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final initialValue = widget.initialValue;
+    if (initialValue != null && initialValue > 0) {
+      _areaController.text = _formatNumber(initialValue);
+    }
+  }
+
+  @override
+  void dispose() {
+    _areaController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _areaController,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            labelText: widget.labelText,
+            border: const OutlineInputBorder(),
+          ),
+          validator: _validatePositiveNumber,
+          onFieldSubmitted: (_) => _onSavePressed(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(onPressed: _onSavePressed, child: const Text('Сохранить')),
+      ],
+    );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    Navigator.of(
+      context,
+    ).pop(double.parse(_normalizeNumber(_areaController.text)));
+  }
+
+  String? _validatePositiveNumber(String? value) {
+    final parsedValue = double.tryParse(_normalizeNumber(value ?? ''));
+    if (parsedValue == null) {
+      return 'Введите корректное число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String _normalizeNumber(String value) {
+    return value.trim().replaceAll(',', '.');
+  }
+
+  String _formatNumber(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toString();
   }
 }
 
@@ -739,12 +916,14 @@ final class _AreaSetupForm extends StatefulWidget {
   const _AreaSetupForm({
     required this.title,
     required this.labelText,
+    required this.initialValue,
     required this.isSaving,
     required this.onSave,
   });
 
   final String title;
   final String labelText;
+  final double? initialValue;
   final bool isSaving;
   final void Function(double area) onSave;
 
@@ -755,6 +934,15 @@ final class _AreaSetupForm extends StatefulWidget {
 final class _AreaSetupFormState extends State<_AreaSetupForm> {
   final _formKey = GlobalKey<FormState>();
   final _areaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final initialValue = widget.initialValue;
+    if (initialValue != null && initialValue > 0) {
+      _areaController.text = _formatNumber(initialValue);
+    }
+  }
 
   @override
   void dispose() {
@@ -840,5 +1028,13 @@ final class _AreaSetupFormState extends State<_AreaSetupForm> {
 
   String _normalizeNumber(String value) {
     return value.trim().replaceAll(',', '.');
+  }
+
+  String _formatNumber(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toString();
   }
 }

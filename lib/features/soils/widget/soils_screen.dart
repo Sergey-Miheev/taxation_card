@@ -298,7 +298,7 @@ final class _SoilsScreenState extends State<SoilsScreen>
     final recordsFuture = _recordsFuture;
     if (selectedProbaInfoId == null || recordsFuture == null) {
       return const _InfoCard(
-        title: 'Последние записи',
+        title: 'Список почв',
         message: 'Выберите пробную площадь, чтобы увидеть сохранённые записи.',
       );
     }
@@ -317,7 +317,7 @@ final class _SoilsScreenState extends State<SoilsScreen>
 
         if (snapshot.hasError) {
           return const _InfoCard(
-            title: 'Последние записи',
+            title: 'Список почв',
             message: 'Не удалось загрузить данные по почвам.',
           );
         }
@@ -325,7 +325,7 @@ final class _SoilsScreenState extends State<SoilsScreen>
         final records = snapshot.data ?? const [];
         if (records.isEmpty) {
           return const _InfoCard(
-            title: 'Последние записи',
+            title: 'Список почв',
             message: 'Сохранённых записей пока нет.',
           );
         }
@@ -337,7 +337,7 @@ final class _SoilsScreenState extends State<SoilsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Последние записи',
+                  'Список почв',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),

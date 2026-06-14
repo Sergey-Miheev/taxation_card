@@ -17,6 +17,8 @@ final class EyesTaxationScreen extends StatefulWidget {
 final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
     with AutomaticKeepAliveClientMixin {
   static const _initialRowCount = 10;
+  static const _defaultOrigin = 'семенное естественное';
+  static const _defaultMerchantabilityClass = '1';
 
   final List<_TaxationRowData> _rows = [];
   int? _loadedProbaInfoId;
@@ -232,7 +234,15 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
       return;
     }
 
-    setState(() => row.speciesController.text = result);
+    setState(() {
+      row.speciesController.text = result;
+      if (row.originController.text.trim().isEmpty) {
+        row.originController.text = _defaultOrigin;
+      }
+      if (row.merchantabilityClassController.text.trim().isEmpty) {
+        row.merchantabilityClassController.text = _defaultMerchantabilityClass;
+      }
+    });
     unawaited(_saveRows());
   }
 
@@ -345,7 +355,7 @@ final class _TaxationTable extends StatelessWidget {
             columnWidths: const {
               0: FixedColumnWidth(60),
               1: FixedColumnWidth(60),
-              2: FixedColumnWidth(150),
+              2: FixedColumnWidth(130),
               3: FixedColumnWidth(70),
               4: FixedColumnWidth(70),
               5: FixedColumnWidth(80),
@@ -521,18 +531,27 @@ final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
   Widget build(BuildContext context) {
     final currentValue = widget.controller.text.trim();
     final value = widget.options.contains(currentValue) ? currentValue : null;
+    final originTextStyle = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(fontSize: 14, height: 1.05);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
+        iconSize: 12,
         itemHeight: 64,
         items: [
           for (final option in widget.options)
             DropdownMenuItem<String>(
               value: option,
-              child: Text(option, maxLines: 2, overflow: TextOverflow.ellipsis),
+              child: Text(
+                option,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: originTextStyle,
+              ),
             ),
         ],
         selectedItemBuilder: (context) {
@@ -544,6 +563,7 @@ final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
                   option,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  style: originTextStyle,
                 ),
               ),
           ];
@@ -555,7 +575,7 @@ final class _OriginDropdownCellState extends State<_OriginDropdownCell> {
         decoration: const InputDecoration(
           isDense: true,
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );

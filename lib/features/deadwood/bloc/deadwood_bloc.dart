@@ -219,7 +219,7 @@ final class DeadwoodBloc extends Bloc<DeadwoodEvent, DeadwoodState> {
       emit(
         state.copyWith(
           status: DeadwoodStatus.failure,
-          message: 'Не удалось загрузить последние записи.',
+          message: 'Не удалось загрузить записи.',
         ),
       );
     }

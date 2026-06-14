@@ -33,16 +33,12 @@ final class DeadwoodRepository {
     return _database.insert('deadwood', _toRow(record));
   }
 
-  Future<List<DeadwoodRecord>> getLatestByProbaInfoId(
-    int probaInfoId, {
-    int limit = 4,
-  }) async {
+  Future<List<DeadwoodRecord>> getLatestByProbaInfoId(int probaInfoId) async {
     final rows = await _database.query(
       'deadwood',
       where: 'proba_info_id = ?',
       whereArgs: [probaInfoId],
       orderBy: 'id DESC',
-      limit: limit,
     );
 
     return rows.map(_fromRow).toList();

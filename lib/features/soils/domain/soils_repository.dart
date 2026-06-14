@@ -53,16 +53,12 @@ final class SoilsRepository {
 
   final Database _database;
 
-  Future<List<SoilRecord>> getLatestByProbaInfoId(
-    int probaInfoId, {
-    int limit = 4,
-  }) async {
+  Future<List<SoilRecord>> getLatestByProbaInfoId(int probaInfoId) async {
     final rows = await _database.query(
       'soils',
       where: 'proba_info_id = ?',
       whereArgs: [probaInfoId],
       orderBy: 'id DESC',
-      limit: limit,
     );
 
     return rows.map(_fromRow).toList();

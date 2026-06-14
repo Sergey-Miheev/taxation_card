@@ -19,6 +19,7 @@ import 'package:taxation_card/features/proba_info/domain/forestry_repository.dar
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/soils/domain/soils_repository.dart';
+import 'package:taxation_card/features/species/domain/species_options_controller.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -52,6 +53,9 @@ final class AppRunner {
     final deadwoodRepository = DeadwoodRepository(database: database);
     final stumpsRepository = StumpsRepository(database: database);
     final soilsRepository = SoilsRepository(database: database);
+    final speciesOptionsController = SpeciesOptionsController(
+      treeInformationRepository: treeInformationRepository,
+    );
     final homeCsvExporter = HomeCsvExporter(database: database);
     final databaseExporter = DatabaseExporter(database: database);
     final taxationCharacteristicBloc = TaxationCharacteristicBloc(
@@ -74,6 +78,7 @@ final class AppRunner {
       deadwoodRepository: deadwoodRepository,
       stumpsRepository: stumpsRepository,
       soilsRepository: soilsRepository,
+      speciesOptionsController: speciesOptionsController,
       taxationCharacteristicRepository: taxationCharacteristicRepository,
       undergrowthRepository: undergrowthRepository,
       understoryRepository: understoryRepository,

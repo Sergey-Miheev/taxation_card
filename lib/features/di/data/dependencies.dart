@@ -11,6 +11,7 @@ import 'package:taxation_card/features/proba_info/domain/forestry_repository.dar
 import 'package:taxation_card/features/proba_info/domain/proba_info_repository.dart';
 import 'package:taxation_card/features/soils/bloc/soils_bloc.dart';
 import 'package:taxation_card/features/soils/domain/soils_repository.dart';
+import 'package:taxation_card/features/species/domain/species_options_controller.dart';
 import 'package:taxation_card/features/stumps/bloc/stumps_bloc.dart';
 import 'package:taxation_card/features/stumps/domain/stumps_repository.dart';
 import 'package:taxation_card/features/taxation_characteristic/bloc/taxation_characteristic_bloc.dart';
@@ -36,6 +37,7 @@ final class Dependencies {
     required this.deadwoodRepository,
     required this.stumpsRepository,
     required this.soilsRepository,
+    required this.speciesOptionsController,
     required this.taxationCharacteristicRepository,
     required this.undergrowthRepository,
     required this.understoryRepository,
@@ -58,6 +60,7 @@ final class Dependencies {
   final DeadwoodRepository deadwoodRepository;
   final StumpsRepository stumpsRepository;
   final SoilsRepository soilsRepository;
+  final SpeciesOptionsController speciesOptionsController;
   final TaxationCharacteristicRepository taxationCharacteristicRepository;
   final UndergrowthRepository undergrowthRepository;
   final UnderstoryRepository understoryRepository;

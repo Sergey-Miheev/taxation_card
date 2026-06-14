@@ -57,6 +57,25 @@ final class TreeInformationRepository {
     return rows.map(_fromRow).toList();
   }
 
+  Future<List<String>> getUniqueSpeciesByProbaInfoId(int probaInfoId) async {
+    final rows = await _database.rawQuery(
+      '''
+SELECT DISTINCT TRIM(species) AS species
+FROM tree_information
+WHERE proba_info_id = ?
+  AND species IS NOT NULL
+  AND TRIM(species) != ''
+ORDER BY species COLLATE NOCASE
+''',
+      [probaInfoId],
+    );
+
+    return rows
+        .map((row) => row['species']?.toString())
+        .whereType<String>()
+        .toList();
+  }
+
   Future<void> deleteById(int id) async {
     await _database.delete(
       'tree_information',

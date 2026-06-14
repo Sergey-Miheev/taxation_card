@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:taxation_card/core/widgets/diameter_picker.dart';
 import 'package:taxation_card/core/widgets/species_picker_dialog.dart';
+import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
 import 'package:taxation_card/features/home/bloc/main_tabs_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/bloc/permanent_pp_bloc.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
@@ -76,11 +79,11 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
   ];
 
   final _formKey = GlobalKey<FormState>();
+  final _treeNumberController = TextEditingController();
   final _treeAgeController = TextEditingController();
   final _treeHeightController = TextEditingController();
 
   String? _selectedWoodQuality = 'Деловая';
-  final List<String> _dynamicElements = [];
   String? _selectedDynamicElement;
   final List<DiameterPickerSelection> _selectedDiameters = [];
   int? _activeDiameterIndex;
@@ -89,6 +92,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
 
   @override
   void dispose() {
+    _treeNumberController.dispose();
     _treeAgeController.dispose();
     _treeHeightController.dispose();
     super.dispose();
@@ -101,6 +105,9 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     final selectedProbaInfoId = context.select<MainTabsBloc, int?>(
       (bloc) => bloc.state.selectedProbaInfoId,
     );
+    final speciesOptionsController = DependenciesScope.of(
+      context,
+    ).speciesOptionsController;
     _loadRecordsIfNeeded(selectedProbaInfoId);
 
     return BlocListener<PermanentPpBloc, PermanentPpState>(
@@ -205,53 +212,66 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                       children: [
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              ..._dynamicElements.map((element) {
-                                final isSelected =
-                                    _selectedDynamicElement == element;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: InputChip(
-                                    label: Text(element),
-                                    selected: isSelected,
-                                    onSelected: (selected) {
-                                      final value = selected ? element : null;
-                                      setState(() {
-                                        _selectedDynamicElement = value;
-                                      });
-                                      field.didChange(value);
-                                    },
-                                    onDeleted: () {
-                                      setState(() {
-                                        _dynamicElements.remove(element);
-                                        if (_selectedDynamicElement ==
-                                            element) {
-                                          _selectedDynamicElement = null;
-                                        }
-                                      });
-                                      field.didChange(_selectedDynamicElement);
-                                    },
-                                    showCheckmark: false,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                          child: ValueListenableBuilder<List<String>>(
+                            valueListenable: speciesOptionsController,
+                            builder: (context, speciesOptions, _) {
+                              return Row(
+                                children: [
+                                  ...speciesOptions.map((element) {
+                                    final isSelected =
+                                        _selectedDynamicElement == element;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: InputChip(
+                                        label: Text(element),
+                                        selected: isSelected,
+                                        onSelected: (selected) {
+                                          final value = selected
+                                              ? element
+                                              : null;
+                                          setState(() {
+                                            _selectedDynamicElement = value;
+                                          });
+                                          field.didChange(value);
+                                        },
+                                        onDeleted: () {
+                                          speciesOptionsController.remove(
+                                            element,
+                                          );
+                                          setState(() {
+                                            if (_selectedDynamicElement ==
+                                                element) {
+                                              _selectedDynamicElement = null;
+                                            }
+                                          });
+                                          field.didChange(
+                                            _selectedDynamicElement,
+                                          );
+                                        },
+                                        showCheckmark: false,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        backgroundColor: theme
+                                            .colorScheme
+                                            .secondaryContainer
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    );
+                                  }),
+                                  IconButton.filledTonal(
+                                    onPressed: _showSpeciesDialog,
+                                    icon: const Icon(Icons.add, size: 20),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
                                     ),
-                                    backgroundColor: theme
-                                        .colorScheme
-                                        .secondaryContainer
-                                        .withValues(alpha: 0.5),
                                   ),
-                                );
-                              }),
-                              IconButton.filledTonal(
-                                onPressed: _showSpeciesDialog,
-                                icon: const Icon(Icons.add, size: 20),
-                                constraints: const BoxConstraints(
-                                  minWidth: 40,
-                                  minHeight: 40,
-                                ),
-                              ),
-                            ],
+                                ],
+                              );
+                            },
                           ),
                         ),
                         if (field.hasError)
@@ -280,12 +300,18 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                   onSelectionRemoved: _onDiameterRemoved,
                 ),
                 const SizedBox(height: 16),
+                _buildNumberField(
+                  controller: _treeNumberController,
+                  labelText: 'Номер дерева',
+                  optional: true,
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _buildNumberField(
                         controller: _treeAgeController,
-                        labelText: 'Возраст дерева',
+                        labelText: 'Возраст дерева, лет',
                         optional: true,
                       ),
                     ),
@@ -293,7 +319,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                     Expanded(
                       child: _buildNumberField(
                         controller: _treeHeightController,
-                        labelText: 'Высота дерева',
+                        labelText: 'Высота дерева, м',
                         allowDecimal: true,
                         optional: true,
                       ),
@@ -431,6 +457,12 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     }
 
     _loadedProbaInfoId = selectedProbaInfoId;
+    _selectedDynamicElement = null;
+    unawaited(
+      DependenciesScope.of(
+        context,
+      ).speciesOptionsController.loadForProbaInfo(selectedProbaInfoId),
+    );
     if (selectedProbaInfoId == null) {
       return;
     }
@@ -632,6 +664,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
 
     final record = TreeInformationRecord(
       probaInfoId: selectedProbaInfoId,
+      treeNumber: _parseOptionalInt(_treeNumberController.text),
       woodQuality: _selectedWoodQuality,
       species: _selectedDynamicElement,
       d1: _selectedDiameters[0].value,
@@ -653,6 +686,7 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
       _selectedDynamicElement = null;
       _selectedDiameters.clear();
       _activeDiameterIndex = null;
+      _treeNumberController.clear();
       _treeAgeController.clear();
       _treeHeightController.clear();
     });
@@ -683,10 +717,8 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
     );
 
     if (result != null && mounted) {
+      DependenciesScope.of(context).speciesOptionsController.add(result);
       setState(() {
-        if (!_dynamicElements.contains(result)) {
-          _dynamicElements.add(result);
-        }
         _selectedDynamicElement = result;
       });
       _formKey.currentState?.validate();

@@ -53,7 +53,18 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 8),
-                _TotalPlotAreaLabel(totalPlotArea: _totalPlotArea),
+                _TotalPlotAreaLabel(
+                  totalPlotArea: _totalPlotArea,
+                  onEditPressed:
+                      selectedProbaInfoId == null ||
+                          _isLoading ||
+                          _plotCount == null ||
+                          _plotCount! <= 0 ||
+                          _totalPlotArea == null ||
+                          _totalPlotArea! <= 0
+                      ? null
+                      : () => _showPlotSetupDialog(selectedProbaInfoId),
+                ),
                 const SizedBox(height: 16),
                 if (_isLoading) ...[
                   const LinearProgressIndicator(),
@@ -148,6 +159,25 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
   @override
   bool get wantKeepAlive => true;
 
+  void _showTopSnackBar(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          left: 16,
+          top: MediaQuery.paddingOf(context).top + 16,
+          right: 16,
+          bottom: MediaQuery.sizeOf(context).height - 148,
+        ),
+        duration: duration,
+      ),
+    );
+  }
+
   Future<void> _openAddDialog(int probaInfoId) async {
     final plotCount = _plotCount;
     if (plotCount == null || plotCount <= 0) {
@@ -197,6 +227,7 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
       _rows.add(row);
       _selectedIndex = _rows.length - 1;
     });
+    _showTopSnackBar('Запись подлеска добавлена.');
   }
 
   Future<void> _deleteRow() async {
@@ -349,6 +380,31 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
     }
   }
 
+  Future<void> _showPlotSetupDialog(int selectedProbaInfoId) async {
+    final plotCount = _plotCount;
+    final totalPlotArea = _totalPlotArea;
+    if (plotCount == null || plotCount <= 0 || totalPlotArea == null) {
+      return;
+    }
+
+    final setup = await showDialog<_PlotSetupDraft>(
+      context: context,
+      builder: (context) => _PlotSetupDialog(
+        title: 'Учетные площадки подлеска',
+        initialPlotCount: plotCount,
+        initialSinglePlotArea: totalPlotArea / plotCount,
+      ),
+    );
+
+    if (setup != null && mounted) {
+      await _savePlotSetup(
+        selectedProbaInfoId,
+        setup.plotCount,
+        setup.singlePlotArea,
+      );
+    }
+  }
+
   Future<void> _updateRow(_UnderstoryTableRow row) async {
     final id = row.id;
     if (id == null) {
@@ -368,6 +424,153 @@ final class _UnderstoryScreenState extends State<UnderstoryScreen>
         const SnackBar(content: Text('Не удалось обновить запись подлеска.')),
       );
     }
+  }
+}
+
+final class _PlotSetupDraft {
+  const _PlotSetupDraft({
+    required this.plotCount,
+    required this.singlePlotArea,
+  });
+
+  final int plotCount;
+  final double singlePlotArea;
+}
+
+final class _PlotSetupDialog extends StatefulWidget {
+  const _PlotSetupDialog({
+    required this.title,
+    required this.initialPlotCount,
+    required this.initialSinglePlotArea,
+  });
+
+  final String title;
+  final int initialPlotCount;
+  final double initialSinglePlotArea;
+
+  @override
+  State<_PlotSetupDialog> createState() => _PlotSetupDialogState();
+}
+
+final class _PlotSetupDialogState extends State<_PlotSetupDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _plotCountController = TextEditingController();
+  final _singlePlotAreaController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _plotCountController.text = widget.initialPlotCount.toString();
+    _singlePlotAreaController.text = _formatDouble(
+      widget.initialSinglePlotArea,
+    );
+  }
+
+  @override
+  void dispose() {
+    _plotCountController.dispose();
+    _singlePlotAreaController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _plotCountController,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Количество учетных площадок',
+                border: OutlineInputBorder(),
+              ),
+              validator: _validatePositiveInt,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _singlePlotAreaController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Площадь одной учетной площадки, га',
+                border: OutlineInputBorder(),
+              ),
+              validator: _validatePositiveNumber,
+              onFieldSubmitted: (_) => _onSavePressed(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(onPressed: _onSavePressed, child: const Text('Сохранить')),
+      ],
+    );
+  }
+
+  void _onSavePressed() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _PlotSetupDraft(
+        plotCount: int.parse(_plotCountController.text.trim()),
+        singlePlotArea: double.parse(
+          _normalizeNumber(_singlePlotAreaController.text),
+        ),
+      ),
+    );
+  }
+
+  String? _validatePositiveInt(String? value) {
+    final parsedValue = int.tryParse(value?.trim() ?? '');
+    if (parsedValue == null) {
+      return 'Введите целое число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String? _validatePositiveNumber(String? value) {
+    final parsedValue = double.tryParse(_normalizeNumber(value ?? ''));
+    if (parsedValue == null) {
+      return 'Введите корректное число';
+    }
+
+    if (parsedValue <= 0) {
+      return 'Значение должно быть больше 0';
+    }
+
+    return null;
+  }
+
+  String _normalizeNumber(String value) {
+    return value.trim().replaceAll(',', '.');
+  }
+
+  String _formatDouble(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toString();
   }
 }
 
@@ -437,7 +640,7 @@ final class _UnderstoryPlotSetupFormState
                     ),
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
-                      labelText: 'Площадь одной учетной площадки',
+                      labelText: 'Площадь одной учетной площадки, га',
                       border: OutlineInputBorder(),
                     ),
                     validator: _validatePositiveNumber,
@@ -508,24 +711,40 @@ final class _UnderstoryPlotSetupFormState
 }
 
 final class _TotalPlotAreaLabel extends StatelessWidget {
-  const _TotalPlotAreaLabel({required this.totalPlotArea});
+  const _TotalPlotAreaLabel({
+    required this.totalPlotArea,
+    required this.onEditPressed,
+  });
 
   final double? totalPlotArea;
+  final VoidCallback? onEditPressed;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final area = totalPlotArea;
     final text = area == null
-        ? 'Общая площадь подлеска: -'
-        : 'Общая площадь подлеска: ${_formatDouble(area)}';
+        ? 'Общая площадь подлеска: -, га'
+        : 'Общая площадь подлеска: ${_formatDouble(area)}, га';
 
-    return Text(
-      text,
-      style: theme.textTheme.titleSmall?.copyWith(
-        color: theme.colorScheme.primary,
-        fontWeight: FontWeight.w600,
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (onEditPressed != null)
+          TextButton.icon(
+            onPressed: onEditPressed,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Редактировать'),
+          ),
+      ],
     );
   }
 
@@ -965,6 +1184,11 @@ final class _UnderstoryEditableTable extends StatelessWidget {
 
   static const _borderColor = Color(0xFFE0E0E0);
   static const _rowHeight = 56.0;
+  static const _plotNumberColumnWidth = 76.0;
+  static const _speciesColumnWidth = 110.0;
+  static const _countColumnWidth = 68.0;
+  static const _smallGroupColumnCount = 4;
+  static const _largeGroupColumnCount = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -972,125 +1196,152 @@ final class _UnderstoryEditableTable extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(border: Border.all(color: _borderColor)),
-      child: Table(
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        columnWidths: const {
-          0: FixedColumnWidth(76),
-          1: FixedColumnWidth(110),
-          2: FixedColumnWidth(68),
-          3: FixedColumnWidth(68),
-          4: FixedColumnWidth(68),
-          5: FixedColumnWidth(68),
-          6: FixedColumnWidth(68),
-          7: FixedColumnWidth(68),
-          8: FixedColumnWidth(68),
-          9: FixedColumnWidth(68),
-          10: FixedColumnWidth(68),
-          11: FixedColumnWidth(68),
-          12: FixedColumnWidth(68),
-          13: FixedColumnWidth(68),
-          14: FixedColumnWidth(68),
-          15: FixedColumnWidth(68),
-        },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
+          _buildHeader(theme),
+          Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {
+              0: FixedColumnWidth(_plotNumberColumnWidth),
+              1: FixedColumnWidth(_speciesColumnWidth),
+              2: FixedColumnWidth(_countColumnWidth),
+              3: FixedColumnWidth(_countColumnWidth),
+              4: FixedColumnWidth(_countColumnWidth),
+              5: FixedColumnWidth(_countColumnWidth),
+              6: FixedColumnWidth(_countColumnWidth),
+              7: FixedColumnWidth(_countColumnWidth),
+              8: FixedColumnWidth(_countColumnWidth),
+              9: FixedColumnWidth(_countColumnWidth),
+              10: FixedColumnWidth(_countColumnWidth),
+              11: FixedColumnWidth(_countColumnWidth),
+              12: FixedColumnWidth(_countColumnWidth),
+              13: FixedColumnWidth(_countColumnWidth),
+              14: FixedColumnWidth(_countColumnWidth),
+              15: FixedColumnWidth(_countColumnWidth),
+            },
             children: [
-              _HeaderCell(text: '№\nуч.\nпл.', height: 56),
-              _HeaderCell(text: 'Древесная\nпорода', height: 56),
-              _HeaderCell(text: 'Мелкий, средний подлесок', height: 56),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'Крупный подлесок', height: 56),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
+              for (var index = 0; index < rows.length; index++)
+                _buildDataRow(
+                  context: context,
+                  index: index,
+                  row: rows[index],
+                  isSelected: selectedIndex == index,
+                  theme: theme,
+                ),
             ],
           ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    const headerBackgroundColor = Color(0xFFF8F8F8);
+    const topHeaderHeight = 56.0;
+    const countHeaderHeight = 50.0;
+    const heightGroupHeaderHeight = 42.0;
+    const statusHeaderHeight = 36.0;
+    const fullHeaderHeight =
+        topHeaderHeight +
+        countHeaderHeight +
+        heightGroupHeaderHeight +
+        statusHeaderHeight;
+    const smallGroupWidth = _smallGroupColumnCount * _countColumnWidth;
+    const largeGroupWidth = _largeGroupColumnCount * _countColumnWidth;
+    const heightGroupWidth = 2 * _countColumnWidth;
+
+    return ColoredBox(
+      color: headerBackgroundColor,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HeaderBox(
+            width: _plotNumberColumnWidth,
+            height: fullHeaderHeight,
+            text: '№\nуч.\nпл.',
+            theme: theme,
+          ),
+          _HeaderBox(
+            width: _speciesColumnWidth,
+            height: fullHeaderHeight,
+            text: 'Древесная\nпорода',
+            theme: theme,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(
-                text: 'количество по\nгруппам высот, шт.',
-                height: 50,
+              Row(
+                children: [
+                  _HeaderBox(
+                    width: smallGroupWidth,
+                    height: topHeaderHeight,
+                    text: 'Мелкий, средний подлесок',
+                    theme: theme,
+                  ),
+                  _HeaderBox(
+                    width: largeGroupWidth,
+                    height: topHeaderHeight,
+                    text: 'Крупный подлесок',
+                    theme: theme,
+                  ),
+                ],
               ),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(
-                text: 'количество по\nгруппам высот, шт.',
-                height: 50,
+              Row(
+                children: [
+                  _HeaderBox(
+                    width: smallGroupWidth,
+                    height: countHeaderHeight,
+                    text: 'количество по\nгруппам высот, шт.',
+                    theme: theme,
+                  ),
+                  _HeaderBox(
+                    width: largeGroupWidth,
+                    height: countHeaderHeight,
+                    text: 'количество по\nгруппам высот, шт.',
+                    theme: theme,
+                  ),
+                ],
               ),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
+              Row(
+                children: [
+                  for (final title in const [
+                    'до 0.5',
+                    '0.51-1.5',
+                    '1.51-2.5',
+                    '2.51-3.5',
+                    '3.51-4.5',
+                    '4.51-5.5',
+                    '5.51 и>',
+                  ])
+                    _HeaderBox(
+                      width: heightGroupWidth,
+                      height: heightGroupHeaderHeight,
+                      text: title,
+                      theme: theme,
+                    ),
+                ],
+              ),
+              Row(
+                children: [
+                  for (var index = 0; index < 7; index++) ...[
+                    _HeaderBox(
+                      width: _countColumnWidth,
+                      height: statusHeaderHeight,
+                      text: 'ж.',
+                      theme: theme,
+                    ),
+                    _HeaderBox(
+                      width: _countColumnWidth,
+                      height: statusHeaderHeight,
+                      text: 'пог.',
+                      theme: theme,
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'до 0.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '0.51-1.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '1.51-2.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '2.51-3.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '3.51-4.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '4.51-5.5', height: 42),
-              _HeaderCell.empty(),
-              _HeaderCell(text: '5.51 и>', height: 42),
-              _HeaderCell.empty(),
-            ],
-          ),
-          const TableRow(
-            decoration: BoxDecoration(color: Color(0xFFF8F8F8)),
-            children: [
-              _HeaderCell.empty(),
-              _HeaderCell.empty(),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-              _HeaderCell(text: 'ж.', height: 36),
-              _HeaderCell(text: 'пог.', height: 36),
-            ],
-          ),
-          for (var index = 0; index < rows.length; index++)
-            _buildDataRow(
-              context: context,
-              index: index,
-              row: rows[index],
-              isSelected: selectedIndex == index,
-              theme: theme,
-            ),
         ],
       ),
     );
@@ -1434,23 +1685,23 @@ final class _UnderstoryTableRow {
   }
 }
 
-final class _HeaderCell extends StatelessWidget {
-  const _HeaderCell({required this.text, required this.height});
+final class _HeaderBox extends StatelessWidget {
+  const _HeaderBox({
+    required this.width,
+    required this.height,
+    required this.text,
+    required this.theme,
+  });
 
-  const _HeaderCell.empty() : text = '', height = 0;
-
-  final String text;
+  final double width;
   final double height;
+  final String text;
+  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
-    if (height == 0) {
-      return const SizedBox.shrink();
-    }
-
-    final theme = Theme.of(context);
-
     return Container(
+      width: width,
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(

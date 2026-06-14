@@ -59,7 +59,6 @@ CREATE TABLE subject_districts (
     await _seedFederationData(db);
     await _seedForestryData(db);
     await _createProbaInfoTable(db);
-    await _seedTestProbaInfo(db);
     await _createEyesTaxationTable(db);
     await _createTreeInformationTable(db);
     await _createUndergrowthTable(db);
@@ -211,34 +210,6 @@ CREATE TABLE IF NOT EXISTS proba_info (
   y4 TEXT
 )
 ''');
-  }
-
-  Future<void> _seedTestProbaInfo(Database db) async {
-    await db.insert('proba_info', {
-      'planting_date': DateTime.now().toIso8601String(),
-      'region': 'Республика Адыгея (Адыгея)',
-      'district': 'Майкопский муниципальный район',
-      'forestry': 'Майкопское',
-      'sub_forestry': 'Абадзехское',
-      'dominant_species': 'Сосна',
-      'site_class': '1',
-      'forest_type': 'СБР',
-      'tlu': 'B2',
-      'soil': 'Дерново-подзолистая',
-      'living_ground_cover': 'Травяной',
-      'undergrowth': 'Сосна',
-      'understory': 'Лещина',
-      'undergrowth_plot_count': 0,
-      'undergrowth_plot_area': 0,
-      'understory_plot_count': 0,
-      'understory_plot_area': 0,
-      'quarter': 1,
-      'allotment': 1,
-      'sample_plot_number': 1,
-      'sample_plot_area': 0.25,
-      'deadwood_area': 0,
-      'stumps_accounting_area': 0,
-    });
   }
 
   Future<void> _createTreeInformationTable(Database db) async {
