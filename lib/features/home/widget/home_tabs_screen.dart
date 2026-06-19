@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:taxation_card/features/brushwood/widget/brushwood_screen.dart';
 import 'package:taxation_card/features/coordinates/widget/coordinates_screen.dart';
 import 'package:taxation_card/features/deadwood/widget/deadwood_screen.dart';
 import 'package:taxation_card/features/di/widget/dependencies_scope.dart';
@@ -105,6 +106,7 @@ final class _HomeTabsScreenState extends State<HomeTabsScreen>
               UndergrowthScreen(),
               UnderstoryScreen(),
               DeadwoodScreen(),
+              BrushwoodScreen(),
               StumpsScreen(),
               SoilsScreen(),
             ],

@@ -193,27 +193,13 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
                                       ),
                                     );
                                   },
-                                  onDeleted: () {
-                                    speciesOptionsController.remove(element);
-                                    setState(() {
-                                      if (_selectedSpecies == element) {
-                                        _selectedSpecies = null;
-                                      }
-                                    });
-                                    context.read<DeadwoodBloc>().add(
-                                      DeadwoodEvent.speciesChanged(
-                                        _selectedSpecies,
-                                      ),
-                                    );
-                                  },
                                   showCheckmark: false,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  backgroundColor: theme
-                                      .colorScheme
-                                      .secondaryContainer
-                                      .withValues(alpha: 0.5),
+                                  backgroundColor: Colors.transparent,
+                                  selectedColor:
+                                      theme.colorScheme.secondaryContainer,
                                 ),
                               );
                             }),
@@ -396,10 +382,7 @@ final class _DeadwoodScreenState extends State<DeadwoodScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Список валежа',
-          style: theme.textTheme.titleMedium,
-        ),
+        Text('Список валежа', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         if (selectedProbaInfoId == null)
           Text(

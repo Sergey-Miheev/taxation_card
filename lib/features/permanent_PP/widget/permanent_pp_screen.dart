@@ -66,16 +66,82 @@ final class _HighlightedRecordRow extends StatelessWidget {
   }
 }
 
+final class _DiameterPurposeLabel extends StatelessWidget {
+  const _DiameterPurposeLabel({required this.selections});
+
+  final List<DiameterPickerSelection> selections;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _DiameterPurposeChip(
+          color: Colors.green.shade600,
+          label: 'Диаметр 1',
+          value: selections.isEmpty ? null : selections[0],
+        ),
+        _DiameterPurposeChip(
+          color: Colors.blue.shade600,
+          label: 'Диаметр 2',
+          value: selections.length < 2 ? null : selections[1],
+        ),
+      ],
+    );
+  }
+}
+
+final class _DiameterPurposeChip extends StatelessWidget {
+  const _DiameterPurposeChip({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  final Color color;
+  final String label;
+  final DiameterPickerSelection? value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selection = value;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          selection == null ? label : '$label: ${_formatValue(selection)} см',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _formatValue(DiameterPickerSelection selection) {
+    return selection.value.toStringAsFixed(1).replaceAll('.', ',');
+  }
+}
+
 final class _PermanentPpScreenState extends State<PermanentPpScreen>
     with AutomaticKeepAliveClientMixin {
   static const _woodQualityOptions = [
     'Деловая',
     'Полуделовая',
     'Дровянная',
-    'Сухостой 1',
-    'Сухостой 2',
-    'Сухостой 3',
-    'Сухостой 4',
+    'Сух 1',
+    'Сух 2',
+    'Сух 3',
+    'Сух 4',
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -234,30 +300,16 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                                           });
                                           field.didChange(value);
                                         },
-                                        onDeleted: () {
-                                          speciesOptionsController.remove(
-                                            element,
-                                          );
-                                          setState(() {
-                                            if (_selectedDynamicElement ==
-                                                element) {
-                                              _selectedDynamicElement = null;
-                                            }
-                                          });
-                                          field.didChange(
-                                            _selectedDynamicElement,
-                                          );
-                                        },
                                         showCheckmark: false,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                         ),
-                                        backgroundColor: theme
+                                        backgroundColor: Colors.transparent,
+                                        selectedColor: theme
                                             .colorScheme
-                                            .secondaryContainer
-                                            .withValues(alpha: 0.5),
+                                            .secondaryContainer,
                                       ),
                                     );
                                   }),
@@ -274,22 +326,27 @@ final class _PermanentPpScreenState extends State<PermanentPpScreen>
                             },
                           ),
                         ),
-                        if (field.hasError)
-                          Padding(
+                        SizedBox(
+                          height: 28,
+                          child: Padding(
                             padding: const EdgeInsets.only(top: 8, left: 12),
-                            child: Text(
-                              field.errorText!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.error,
-                              ),
-                            ),
+                            child: field.hasError
+                                ? Text(
+                                    field.errorText!,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.error,
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
                           ),
+                        ),
                       ],
                     );
                   },
                 ),
-                const SizedBox(height: 16),
                 Text('Выберите диаметр', style: theme.textTheme.labelLarge),
+                const SizedBox(height: 8),
+                _DiameterPurposeLabel(selections: _selectedDiameters),
                 const SizedBox(height: 8),
                 DiameterPicker(
                   selections: _selectedDiameters,

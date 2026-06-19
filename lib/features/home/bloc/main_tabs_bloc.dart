@@ -6,7 +6,8 @@ enum MainTab {
   undergrowth('Подрост'),
   understory('Подлесок'),
   deadwood('Валёжник'),
-  stumps('Учёт пней'),
+  brushwood('Хворост'),
+  stumps('Пни'),
   soils('Почвы');
 
   const MainTab(this.title);
