@@ -234,6 +234,10 @@ final class _EyesTaxationScreenState extends State<EyesTaxationScreen>
       return;
     }
 
+    DependenciesScope.of(context).speciesOptionsController.addForProbaInfo(
+      probaInfoId: _loadedProbaInfoId,
+      species: result,
+    );
     setState(() {
       row.speciesController.text = result;
       if (row.originController.text.trim().isEmpty) {

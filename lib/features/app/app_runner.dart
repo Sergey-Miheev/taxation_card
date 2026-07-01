@@ -55,6 +55,7 @@ final class AppRunner {
     final soilsRepository = SoilsRepository(database: database);
     final speciesOptionsController = SpeciesOptionsController(
       treeInformationRepository: treeInformationRepository,
+      taxationCharacteristicRepository: taxationCharacteristicRepository,
     );
     final homeCsvExporter = HomeCsvExporter(database: database);
     final databaseExporter = DatabaseExporter(database: database);

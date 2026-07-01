@@ -7,6 +7,7 @@ final class ProbaInfoRecord {
     required this.samplePlotNumber,
     required this.samplePlotArea,
     required this.deadwoodArea,
+    required this.brushwoodPercent,
     required this.stumpsAccountingArea,
     required this.undergrowthPlotCount,
     required this.undergrowthPlotArea,
@@ -65,6 +66,7 @@ final class ProbaInfoRecord {
   final int samplePlotNumber;
   final double samplePlotArea;
   final double deadwoodArea;
+  final double brushwoodPercent;
   final double stumpsAccountingArea;
   final int undergrowthPlotCount;
   final double undergrowthPlotArea;
@@ -196,6 +198,18 @@ final class ProbaInfoRepository {
     );
   }
 
+  Future<int> updateBrushwoodPercent({
+    required int id,
+    required double percent,
+  }) {
+    return _database.update(
+      'proba_info',
+      {'brushwood_percent': percent},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<int> updateStumpsAccountingArea({
     required int id,
     required double area,
@@ -238,6 +252,7 @@ final class ProbaInfoRepository {
       samplePlotNumber: row['sample_plot_number']! as int,
       samplePlotArea: (row['sample_plot_area']! as num).toDouble(),
       deadwoodArea: (row['deadwood_area']! as num).toDouble(),
+      brushwoodPercent: (row['brushwood_percent']! as num).toDouble(),
       stumpsAccountingArea: (row['stumps_accounting_area']! as num).toDouble(),
       undergrowthPlotCount: row['undergrowth_plot_count']! as int,
       undergrowthPlotArea: (row['undergrowth_plot_area']! as num).toDouble(),
@@ -274,6 +289,7 @@ final class ProbaInfoRepository {
       'sample_plot_number': record.samplePlotNumber,
       'sample_plot_area': record.samplePlotArea,
       'deadwood_area': record.deadwoodArea,
+      'brushwood_percent': record.brushwoodPercent,
       'stumps_accounting_area': record.stumpsAccountingArea,
       'undergrowth_plot_count': record.undergrowthPlotCount,
       'undergrowth_plot_area': record.undergrowthPlotArea,

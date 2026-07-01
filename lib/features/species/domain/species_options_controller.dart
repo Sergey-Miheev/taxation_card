@@ -1,13 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:taxation_card/features/permanent_PP/domain/tree_information_repository.dart';
+import 'package:taxation_card/features/taxation_characteristic/domain/taxation_characteristic_repository.dart';
 
 final class SpeciesOptionsController extends ValueNotifier<List<String>> {
   SpeciesOptionsController({
     required TreeInformationRepository treeInformationRepository,
+    required TaxationCharacteristicRepository taxationCharacteristicRepository,
   }) : _treeInformationRepository = treeInformationRepository,
+       _taxationCharacteristicRepository = taxationCharacteristicRepository,
        super(const []);
 
   final TreeInformationRepository _treeInformationRepository;
+  final TaxationCharacteristicRepository _taxationCharacteristicRepository;
   int? _probaInfoId;
 
   Future<void> loadForProbaInfo(int? probaInfoId) async {
@@ -18,17 +22,31 @@ final class SpeciesOptionsController extends ValueNotifier<List<String>> {
       return;
     }
 
-    final species = await _treeInformationRepository
+    final treeSpecies = await _treeInformationRepository
+        .getUniqueSpeciesByProbaInfoId(probaInfoId);
+    final taxationSpecies = await _taxationCharacteristicRepository
         .getUniqueSpeciesByProbaInfoId(probaInfoId);
     if (_probaInfoId == probaInfoId) {
       value = _normalizeSpecies(
-        shouldMergeWithCurrentValue ? [...value, ...species] : species,
+        shouldMergeWithCurrentValue
+            ? [...value, ...treeSpecies, ...taxationSpecies]
+            : [...treeSpecies, ...taxationSpecies],
       );
     }
   }
 
   void add(String species) {
     value = _normalizeSpecies([...value, species]);
+  }
+
+  void addForProbaInfo({required int? probaInfoId, required String species}) {
+    if (_probaInfoId != probaInfoId) {
+      _probaInfoId = probaInfoId;
+      value = _normalizeSpecies([species]);
+      return;
+    }
+
+    add(species);
   }
 
   void remove(String species) {

@@ -20,6 +20,25 @@ final class TaxationCharacteristicRepository {
     return rows.map(_recordFromRow).toList();
   }
 
+  Future<List<String>> getUniqueSpeciesByProbaInfoId(int probaInfoId) async {
+    final rows = await _database.rawQuery(
+      '''
+SELECT DISTINCT TRIM(species) AS species
+FROM eyes_taxation
+WHERE proba_info_id = ?
+  AND species IS NOT NULL
+  AND TRIM(species) != ''
+ORDER BY species COLLATE NOCASE
+''',
+      [probaInfoId],
+    );
+
+    return rows
+        .map((row) => row['species']?.toString())
+        .whereType<String>()
+        .toList();
+  }
+
   Future<int> insert(TaxationCharacteristicRecord record) {
     return _database.insert('eyes_taxation', _toRow(record));
   }
